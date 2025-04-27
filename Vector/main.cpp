@@ -15,8 +15,6 @@ using namespace std;
 #define numVAOs 1
 #define numVBOs 1
 
-float toRadians(float degrees) { return (degrees * 2.0f * 3.14159f) / 360.0f; }
-
 GLuint renderingProgram;
 GLuint vao[numVAOs];
 GLuint vbo[numVBOs];
@@ -36,17 +34,63 @@ float planeLocX, planeLocY, planeLocZ;
 // Object number of vertices
 unsigned int planeNumVertices;
 
+float toRadians(float degrees) { return (degrees * 2.0f * 3.14159f) / 360.0f; }
+void setupVertices();
+void init(GLFWwindow* window);
+void display(GLFWwindow* window, double currentTime);
+
+
+int main(void)
+{
+	// GLFW init
+	if (!glfwInit()) { exit(EXIT_FAILURE); }
+
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+
+	// Full Screen Monitor Options
+	/*GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
+	const GLFWvidmode* mode = glfwGetVideoMode(primaryMonitor);
+	GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "Vector - Puzzle Game", primaryMonitor, NULL);*/
+
+	GLFWwindow* window = glfwCreateWindow(1200, 800, "Vector - Puzzle Game", NULL, NULL);
+	glfwMakeContextCurrent(window);
+
+	if (glewInit() != GLEW_OK) { exit(EXIT_FAILURE); }
+	glfwSwapInterval(1);
+
+	init(window);
+
+	while (!glfwWindowShouldClose(window))
+	{
+		display(window, glfwGetTime());
+		glfwSwapBuffers(window);
+		glfwPollEvents();
+	}
+
+	glfwDestroyWindow(window);
+	glfwTerminate();
+	exit(EXIT_SUCCESS);
+}
+
+void init(GLFWwindow* window)
+{
+	renderingProgram = Utils::createShaderProgram("vertShader.glsl", "fragShader.glsl");
+	cameraLoc = glm::vec3(0.0f, 0.0f, 5.0f);
+	planeLocX = 0.0f; planeLocY = 0.0f; planeLocZ = 0.0f;
+	setupVertices();
+}
 
 void setupVertices()
 {
-	float planeVertexPositions[18] =  
+	float planeVertexPositions[18] =
 	{
 	   -1.0f, 0.0f, 0.0f,
 		1.0f, 0.0f, 1.0f,
 	   -1.0f, 0.0f, 1.0f,
 
 	   -1.0f, 0.0f, 0.0f,
-	    1.0f, 0.0f, 0.0f,
+		1.0f, 0.0f, 0.0f,
 		1.0f, 0.0f, 1.0f
 	};
 
@@ -59,14 +103,6 @@ void setupVertices()
 
 	glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertexPositions), planeVertexPositions, GL_STATIC_DRAW);
-}
-
-void init(GLFWwindow* window)
-{
-	renderingProgram = Utils::createShaderProgram("vertShader.glsl", "fragShader.glsl");
-	cameraLoc = glm::vec3(0.0f, 0.0f, 5.0f);
-	planeLocX = 0.0f; planeLocY = 0.0f; planeLocZ = 0.0f;
-	setupVertices();
 }
 
 void display(GLFWwindow* window, double currentTime)
@@ -104,37 +140,4 @@ void display(GLFWwindow* window, double currentTime)
 	glDepthFunc(GL_LEQUAL);
 
 	glDrawArrays(GL_TRIANGLES, 0, planeNumVertices);
-}
-
-int main(void)
-{
-	// GLFW init
-	if (!glfwInit()) { exit(EXIT_FAILURE); }
-
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-
-	// Full Screen Monitor Options
-	/*GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
-	const GLFWvidmode* mode = glfwGetVideoMode(primaryMonitor);
-	GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "Vector - Puzzle Game", primaryMonitor, NULL);*/
-
-	GLFWwindow* window = glfwCreateWindow(1200, 800, "Vector - Puzzle Game", NULL, NULL);
-	glfwMakeContextCurrent(window);
-
-	if (glewInit() != GLEW_OK) { exit(EXIT_FAILURE); }
-	glfwSwapInterval(1);
-
-	init(window);
-
-	while (!glfwWindowShouldClose(window)) 
-	{
-		display(window, glfwGetTime());
-		glfwSwapBuffers(window);
-		glfwPollEvents();
-	}
-
-	glfwDestroyWindow(window);
-	glfwTerminate();
-	exit(EXIT_SUCCESS);
 }

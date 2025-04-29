@@ -13,7 +13,7 @@
 using namespace std;
 
 #define numVAOs 1
-#define numVBOs 1
+#define numVBOs 2
 
 GLuint renderingProgram;
 GLuint vao[numVAOs];
@@ -33,6 +33,12 @@ float planeLocX, planeLocY, planeLocZ;
 
 // Object number of vertices
 unsigned int planeNumVertices;
+unsigned int lineNumVertices;
+
+// Tool variables
+bool isLine = false;
+bool isRow = false;
+GLuint isLineLoc, isRowLoc;
 
 float toRadians(float degrees) { return (degrees * 2.0f * 3.14159f) / 360.0f; }
 void setupVertices();
@@ -94,7 +100,14 @@ void setupVertices()
 		1.0f, 0.0f, 1.0f
 	};
 
+	float lineVertexPositions[6] =
+	{
+		0.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f
+	};
+
 	planeNumVertices = 6;
+	lineNumVertices = 2;
 
 	// Init VAO and VBO 
 	glGenVertexArrays(1, vao);
@@ -103,6 +116,9 @@ void setupVertices()
 
 	glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertexPositions), planeVertexPositions, GL_STATIC_DRAW);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(lineVertexPositions), lineVertexPositions, GL_STATIC_DRAW);
 }
 
 void display(GLFWwindow* window, double currentTime)
@@ -114,6 +130,8 @@ void display(GLFWwindow* window, double currentTime)
 
 	mvLoc = glGetUniformLocation(renderingProgram, "mv_matrix");
 	pLoc = glGetUniformLocation(renderingProgram, "p_matrix");
+	isLineLoc = glGetUniformLocation(renderingProgram, "isLine");
+	isRowLoc = glGetUniformLocation(renderingProgram, "isRow");
 
 	// Set up frustum and perspective matrix
 	glfwGetFramebufferSize(window, &width, &height);
@@ -123,9 +141,14 @@ void display(GLFWwindow* window, double currentTime)
 	// View, Model, and Model-View matrices
 	vMat = glm::translate(glm::mat4(1.0f), -cameraLoc);
 	mMat = glm::translate(glm::mat4(1.0f), glm::vec3(planeLocX, planeLocY, planeLocZ));
-	mMat = glm::rotate(mMat, toRadians(20.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	mMat = glm::rotate(mMat, toRadians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 	mMat = glm::scale(mMat, glm::vec3(2.0f, 0.0f, 2.0f));
 	mvMat = vMat * mMat;
+
+	isLine = false;
+	isRow = false;
+	glUniform1i(isRowLoc, isRow);
+	glUniform1i(isLineLoc, isLine);
 
 	// Model-View matrix pointer sent to uniforms
 	glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
@@ -140,4 +163,41 @@ void display(GLFWwindow* window, double currentTime)
 	glDepthFunc(GL_LEQUAL);
 
 	glDrawArrays(GL_TRIANGLES, 0, planeNumVertices);
+
+	mMat = glm::translate(glm::mat4(1.0f), glm::vec3(-2.0f, 0.0f, 0.0f));
+	mMat = glm::rotate(mMat, toRadians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	mMat = glm::scale(mMat, glm::vec3(2.0f, 0.0f, 2.0f));
+	mvMat = vMat * mMat;
+
+	glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+
+	isLine = true;
+	glUniform1i(isLineLoc, isLine);
+
+	// Bind vertex attribute to vbo[0] values and enable vertex attribute
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	glDrawArraysInstanced(GL_LINES, 0, lineNumVertices, 21);
+
+	isLine = false;
+	glUniform1i(isLineLoc, isLine);
+
+	isRow = true;
+	glUniform1i(isRowLoc, isRow);
+
+	mMat = glm::rotate(mMat, toRadians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	//mMat = glm::rotate(mMat, toRadians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	//mMat = glm::rotate(mMat, toRadians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	mMat = glm::scale(mMat, glm::vec3(2.0f, 0.0f, 2.0f));
+	mvMat = vMat * mMat;
+
+	glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	glDrawArraysInstanced(GL_LINES, 0, lineNumVertices, 21);
 }

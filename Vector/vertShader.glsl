@@ -7,28 +7,27 @@ uniform mat4 p_matrix;
 
 uniform bool isLine;
 uniform bool isRow;
+uniform bool isAxes;
 
 float offsetAmount = 0.1f;
 int row, col;
 
 void main(void)
 {
-    row = gl_InstanceID / 21;
-    col = gl_InstanceID % 21;
+    row = gl_InstanceID % 101;
+    col = gl_InstanceID % 191;
     
     if (isLine)
     {
         vec3 offsetPosition = position;
         offsetPosition.x += float(col) * offsetAmount;
 
-        
         gl_Position = p_matrix * mv_matrix * vec4(offsetPosition, 1.0);
     }
     else if (isRow)
     {
         vec3 offsetPosition = position;
-      
-        offsetPosition.x -= float(col) * offsetAmount;
+        offsetPosition.x -= float(row) * offsetAmount;
 
         gl_Position = p_matrix * mv_matrix * vec4(offsetPosition, 1.0);
     }

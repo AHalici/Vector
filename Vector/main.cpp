@@ -40,15 +40,15 @@ bool isLine = false;
 bool isRow = false;
 bool isAxes = false;
 GLuint isLineLoc, isRowLoc, isAxesLoc;
-glm::vec3 xAxis(1.0f, 0.0f, 0.0f);
-glm::vec3 yAxis(0.0f, 1.0f, 0.0f);
-glm::vec3 zAxis(0.0f, 0.0f, 1.0f);
+
 
 
 float toRadians(float degrees) { return (degrees * 2.0f * 3.14159f) / 360.0f; }
 void setupVertices();
 void init(GLFWwindow* window);
 void display(GLFWwindow* window, double currentTime);
+glm::vec3 convert(glm::vec3 ogVec);
+glm::vec3 vector3(float x, float y, float z);
 
 
 int main(void)
@@ -87,8 +87,8 @@ int main(void)
 void init(GLFWwindow* window)
 {
 	renderingProgram = Utils::createShaderProgram("vertShader.glsl", "fragShader.glsl");
-	cameraLoc = glm::vec3(0.0f, 0.0f, 20.0f);
-	planeLocX = 0.0f; planeLocY = 4.0f; planeLocZ = 0.0f;
+	cameraLoc = glm::vec3(0.0f, 20.0f, 10.0f);
+	planeLocX = 0.0f; planeLocY = 0.0f; planeLocZ = 0.0f;
 	setupVertices();
 }
 
@@ -114,19 +114,19 @@ void setupVertices()
 	float xlineVertexPositions[6] =
 	{
 		0.0f, 0.0f, 0.0f,
-		3.0f, 0.0f, 0.0f
+		5.0f, 0.0f, 0.0f
 	};
 
 	float ylineVertexPositions[6] =
 	{
 		0.0f, 0.0f, 0.0f,
-		0.0f, 3.0f, 0.0f
+		0.0f, 5.0f, 0.0f
 	};
 
 	float zlineVertexPositions[6] =
 	{
 		0.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 3.0f
+		0.0f, 0.0f, 5.0f
 	};
 
 	planeNumVertices = 6;
@@ -172,12 +172,26 @@ void display(GLFWwindow* window, double currentTime)
 	pMat = glm::perspective(1.0472f, aspect, 0.1f, 1000.0f); // 1.0472 is about 60 degrees in radians
 
 	// View, Model, and Model-View matrices
-	vMat = glm::translate(glm::mat4(1.0f), -cameraLoc);
+	//vMat = glm::translate(glm::mat4(1.0f), -cameraLoc);
+	//vMat = glm::rotate(vMat, toRadians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	//vMat = glm::lookAt(glm::vec3(0.0f, 20.0f, 0.0f), glm::vec3(planeLocX, planeLocY, planeLocZ), glm::vec3(0.0f, 0.0f, -1.0f));
+	
+	vMat = glm::rotate(glm::mat4(1.0f), toRadians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	vMat = glm::rotate(vMat, toRadians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	vMat = glm::translate(vMat, -cameraLoc);
+	/*vMat = glm::lookAt(
+		glm::vec3(0.0f, 20.0f, 0.0f),
+		glm::vec3(0.0f, 0.0f, 0.0f),
+		glm::vec3(0.0f, 0.0f, -1.0f)
+	);*/
+	
 
-	// ----------------------------------------- PLane -----------------------------------------
-	pmMat = glm::translate(glm::mat4(1.0f), glm::vec3(planeLocX, planeLocY, planeLocZ));
-	pmMat = glm::rotate(pmMat, toRadians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-	//mMat = glm::scale(mMat, glm::vec3(2.0f, 0.0f, 2.0f));
+	// ----------------------------------------- Plane -----------------------------------------
+	//pmMat = glm::rotate(glm::mat4(1.0f), toRadians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	//pmMat = glm::translate(glm::mat4(1.0f), glm::vec3(planeLocX, planeLocY, planeLocZ));
+	pmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 2.0f, 1.0f));
+	pmMat = glm::translate(pmMat, vector3(planeLocX, planeLocY, planeLocZ));//convert(glm::vec3(planeLocX, planeLocY, planeLocZ)));
+	//pmMat = glm::rotate(pmMat, toRadians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 	mvMat = vMat * pmMat;
 
 	isLine = false;
@@ -200,99 +214,112 @@ void display(GLFWwindow* window, double currentTime)
 	glDrawArrays(GL_TRIANGLES, 0, planeNumVertices);
 
 
-	// ----------------------------------------- Vertical Lines -----------------------------------------
-	vlmMat = glm::translate(glm::mat4(1.0f), glm::vec3(-9.5f, -6.0f, 1.0f));
-	//pmMat = glm::rotate(glm::mat4(1.0f), toRadians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-	//mMat = glm::scale(mMat, glm::vec3(2.0f, 0.0f, 2.0f));
-	mvMat = vMat * vlmMat;
+	//// ----------------------------------------- Vertical Lines (Blue) -----------------------------------------
+	//vlmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 2.0f, 1.0f));
+	////vlmMat = glm::rotate(vlmMat, toRadians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	//vlmMat = glm::translate(vlmMat, vector3(10.0f, 2.0f, 0.0f));
+	////vlmMat = glm::rotate(vlmMat, toRadians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	//mvMat = vMat * vlmMat;
 
-	glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
 
-	isLine = true;
-	glUniform1i(isLineLoc, isLine);
+	//isLine = true;
+	//glUniform1i(isLineLoc, isLine);
 
-	// Bind vertex attribute to vbo[1] values and enable vertex attribute
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
-	glEnableVertexAttribArray(0);
+	//// Bind vertex attribute to vbo[1] values and enable vertex attribute
+	//glBindBuffer(GL_ARRAY_BUFFER, vbo[4]);
+	//glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	//glEnableVertexAttribArray(0);
 
-	glDrawArraysInstanced(GL_LINES, 0, lineNumVertices, 191);
-	isLine = false;
-	glUniform1i(isLineLoc, isLine);
+	//glDrawArraysInstanced(GL_LINES, 0, lineNumVertices, 201);
+	//isLine = false;
+	//glUniform1i(isLineLoc, isLine);
 
-	// ----------------------------------------- Horizontal Lines -----------------------------------------
-	isRow = true;
-	glUniform1i(isRowLoc, isRow);
+	//// ----------------------------------------- Horizontal Lines (Green) -----------------------------------------
+	//isRow = true;
+	//glUniform1i(isRowLoc, isRow);
 
-	hlmMat = glm::translate(glm::mat4(1.0f), glm::vec3(-10.0f, -10.0f, 1.0f));
-	hlmMat = glm::scale(hlmMat, glm::vec3(1.0f, 1.0f, 2.0f));
-	//hlmMat = glm::rotate(hlmMat, toRadians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	//mMat = glm::rotate(mMat, toRadians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-	//mMat = glm::rotate(mMat, toRadians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-	//hlmMat = glm::scale(glm::mat4(1.0f), glm::vec3(2.0f, 1.0f, 1.0f));
-	mvMat = vMat * hlmMat;
+	//hlmMat = glm::scale(glm::mat4(1.0f), glm::vec3(4.0f, 1.0f, 1.0f));
+	//hlmMat = glm::translate(hlmMat, vector3(2.5f, 14.0f, 0.0f));
+	//mvMat = vMat * hlmMat;
 
-	glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
 
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
-	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
-	glEnableVertexAttribArray(0);
+	//glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+	//glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	//glEnableVertexAttribArray(0);
 
-	glDrawArraysInstanced(GL_LINES, 0, lineNumVertices, 101);
-	isRow = false;
-	glUniform1i(isRowLoc, isRow);
+	//glDrawArraysInstanced(GL_LINES, 0, lineNumVertices, 101);
+	//
+	//isRow = false;
+	//glUniform1i(isRowLoc, isRow);
 
-	// X-axis Axes
-	isAxes = true;
-	glUniform1i(isAxesLoc, isAxes);
+	//// ----------------------------------------- Axes -----------------------------------------
+	//// ----------------------------------------- X-axis (Red)
+	//isAxes = true;
+	//glUniform1i(isAxesLoc, isAxes);
 
-	amMat = glm::translate(glm::mat4(1.0f), glm::vec3(0.5f, 6.0f, 0.0f));
-	//amMat = glm::rotate(amMat, toRadians(90.0f), xAxis);
-	mvMat = vMat * amMat;
+	//amMat = glm::rotate(glm::mat4(1.0f), toRadians(165.0f), vector3(0.0f, 1.0f, 0.0f));
+	//amMat = glm::translate(amMat, vector3(0.0f, -5.0f, 0.0f));
+	////amMat = glm::rotate(amMat, toRadians(90.0f), xAxis);
+	//mvMat = vMat * amMat;
 
-	glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
 
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
-	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
-	glEnableVertexAttribArray(0);
+	//glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+	//glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	//glEnableVertexAttribArray(0);
 
-	glDrawArrays(GL_LINES, 0, lineNumVertices);
-	isAxes = false;
-	glUniform1i(isAxesLoc, isAxes);
+	//glDrawArrays(GL_LINES, 0, lineNumVertices);
+	//isAxes = false;
+	//glUniform1i(isAxesLoc, isAxes);
 
-	// Y-axis Axes
-	isRow = true;
-	glUniform1i(isRowLoc, isRow);
+	//// ----------------------------------------- Y-axis (World) - (Z-axis converted) (Green)
+	//isRow = true;
+	//glUniform1i(isRowLoc, isRow);
 
-	amMat = glm::translate(glm::mat4(1.0f), glm::vec3(2.0f, 5.0f, 0.0f));
-	mvMat = vMat * amMat;
+	//amMat = glm::rotate(glm::mat4(1.0f), toRadians(-15.0f), vector3(0.0f, 1.0f, 0.0f));
+	//amMat = glm::translate(amMat, vector3(0.0f, -5.0f, 0.0f));
+	//mvMat = vMat * amMat;
 
-	glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
 
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[3]);
-	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
-	glEnableVertexAttribArray(0);
+	//glBindBuffer(GL_ARRAY_BUFFER, vbo[3]);
+	//glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	//glEnableVertexAttribArray(0);
 
-	glDrawArrays(GL_LINES, 0, lineNumVertices);
-	isRow = false;
-	glUniform1i(isRowLoc, isRow);
+	//glDrawArrays(GL_LINES, 0, lineNumVertices);
+	//isRow = false;
+	//glUniform1i(isRowLoc, isRow);
 
-	// Z-axis Axes
-	isLine = true;
-	glUniform1i(isLineLoc, isLine);
+	//// ----------------------------------------- Z-axis (World) - (Y-axis converted) (Blue)
+	//isLine = true;
+	//glUniform1i(isLineLoc, isLine);
 
-	amMat = glm::translate(glm::mat4(1.0f), glm::vec3(2.0f, 6.0f, -4.0f));
-	amMat = glm::scale(amMat, glm::vec3(1.0f, 1.0f, 2.0f));
-	//amMat = glm::rotate(amMat, toRadians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-	mvMat = vMat * amMat;
+	////amMat = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, 1.0f, 2.0f));
+	////amMat = glm::rotate(glm::mat4(1.0f), toRadians(45.0f), vector3(0.0f, 0.0f, 0.0f));
+	//amMat = glm::translate(glm::mat4(1.0f), vector3(0.0f, -5.0f, 0.0f));
+	//
+	////amMat = glm::rotate(amMat, toRadians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	//mvMat = vMat * amMat;
 
-	glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
 
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[4]);
-	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
-	glEnableVertexAttribArray(0);
+	//glBindBuffer(GL_ARRAY_BUFFER, vbo[4]);
+	//glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	//glEnableVertexAttribArray(0);
 
-	glDrawArrays(GL_LINES, 0, lineNumVertices);
-	isLine = false;
-	glUniform1i(isLineLoc, isLine);
+	//glDrawArrays(GL_LINES, 0, lineNumVertices);
+	//isLine = false;
+	//glUniform1i(isLineLoc, isLine);
+}
+
+glm::vec3 convert(glm::vec3 ogVec)
+{
+	return glm::vec3(-ogVec.x, ogVec.z, ogVec.y);
+}
+
+glm::vec3 vector3(float x, float y, float z)
+{
+	return glm::vec3(-x, z, y);
 }

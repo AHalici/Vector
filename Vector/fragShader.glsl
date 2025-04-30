@@ -13,11 +13,11 @@ void main(void)
 {
 	if (isLine)
 	{
-		color = vec4(0.0, 0.0, 1.0, 1.0);
+		color = vec4(0.2, 0.2, 0.2, 1.0);
 	}
 	else if (isRow)
 	{
-		color = vec4(0.0, 1.0, 0.0, 1.0);
+		color = vec4(0.2, 0.2, 0.2, 1.0);
 	}
 	else if (isAxes)
 	{
@@ -25,6 +25,6 @@ void main(void)
 	}
 	else
 	{
-		color = vec4(0.52, 0.52, 0.52, 1.0);
+		color = vec4(0.3, 0.3, 0.3, 1.0);
 	}
 }

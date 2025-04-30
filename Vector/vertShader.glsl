@@ -9,19 +9,18 @@ uniform bool isLine;
 uniform bool isRow;
 uniform bool isAxes;
 
-float offsetAmount = 0.1f;
+float offsetAmount = 1.0f;
 int row, col;
 
 void main(void)
 {
-    row = gl_InstanceID % 101;
-    col = gl_InstanceID % 201;
+    row = gl_InstanceID % 21;
+    col = gl_InstanceID % 21;
 
     vec3 offsetPosition = position;
     
     if (isLine)
     {
-        
         offsetPosition.x += float(col) * offsetAmount;
 
         gl_Position = p_matrix * mv_matrix * vec4(offsetPosition, 1.0);

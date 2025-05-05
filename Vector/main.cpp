@@ -52,6 +52,8 @@ void init(GLFWwindow* window);
 void display(GLFWwindow* window, double currentTime);
 glm::vec3 convert(glm::vec3 ogVec);
 glm::vec3 vector3(float x, float y, float z);
+void setupCamera();
+void updateCamera();
 
 // Key press listeners for camera controller
 void onWKeyPressed();
@@ -133,10 +135,11 @@ int main(void)
 void init(GLFWwindow* window)
 {
 	renderingProgram = Utils::createShaderProgram("vertShader.glsl", "fragShader.glsl");
-	cameraController.setPosition(0.0f, 20.0f, 10.0f);
-	cameraController.setOrientation(glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+	/*cameraController.setPosition(0.0f, 20.0f, 10.0f);
+	cameraController.setOrientation(glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));*/
 	//cameraLoc = glm::vec3(0.0f, 20.0f, 10.0f);
 	planeLocX = 0.0f; planeLocY = 0.0f; planeLocZ = 0.0f;
+	setupCamera();
 	setupVertices();
 }
 
@@ -220,7 +223,7 @@ void display(GLFWwindow* window, double currentTime)
 	pMat = glm::perspective(1.0472f, aspect, 0.1f, 1000.0f); // 1.0472 is about 60 degrees in radians
 
 
-	cameraTMat = glm::mat4(
+	/*cameraTMat = glm::mat4(
 		1.0f, 0.0f, 0.0f, 0.0f,
 		0.0f, 1.0f, 0.0f, 0.0f,
 		0.0f, 0.0f, 1.0f, 0.0f,
@@ -235,7 +238,7 @@ void display(GLFWwindow* window, double currentTime)
 		cameraController.getU().y, cameraController.getV().y, -cameraController.getN().y, 0.0f,
 		cameraController.getU().z, cameraController.getV().z, -cameraController.getN().z, 0.0f,
 		0.0f, 0.0f, 0.0f, 1.0f
-	);
+	);*/
 
 
 
@@ -250,7 +253,7 @@ void display(GLFWwindow* window, double currentTime)
 	vMat = glm::rotate(vMat, toRadians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	vMat = glm::translate(vMat, -cameraLoc);*/
 
-
+	updateCamera();
 	vMat = cameraRMat * cameraTMat;
 
 	/*vMat = glm::lookAt(
@@ -383,6 +386,32 @@ void display(GLFWwindow* window, double currentTime)
 	//glDrawArrays(GL_LINES, 0, lineNumVertices);
 	//isLine = false;
 	//glUniform1i(isLineLoc, isLine);
+}
+
+void setupCamera()
+{
+	cameraController.setPosition(0.0f, 20.0f, 10.0f);
+	cameraController.setOrientation(glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+}
+
+void updateCamera()
+{
+	cameraTMat = glm::mat4(
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		cameraController.getPosition().x, cameraController.getPosition().y, cameraController.getPosition().z, 1.0f
+	);
+
+	negativeCameraPosition = -cameraController.getPosition();
+	cameraTMat = glm::translate(glm::mat4(1.0f), negativeCameraPosition);
+
+	cameraRMat = glm::mat4(
+		cameraController.getU().x, cameraController.getV().x, -cameraController.getN().x, 0.0f,
+		cameraController.getU().y, cameraController.getV().y, -cameraController.getN().y, 0.0f,
+		cameraController.getU().z, cameraController.getV().z, -cameraController.getN().z, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	);
 }
 
 glm::vec3 convert(glm::vec3 ogVec)

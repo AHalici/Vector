@@ -26,8 +26,12 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="vertShader.glsl" />
-    <None Include="fragShader.glsl" />
+    <None Include="fragShader.glsl">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="vertShader.glsl">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Utils.h">

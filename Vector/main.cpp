@@ -16,7 +16,7 @@ using namespace std;
 #define numVAOs 1
 #define numVBOs 5
 
-GLuint renderingProgram;
+GLuint renderingProgram1, renderingProgram2;
 GLuint vao[numVAOs];
 GLuint vbo[numVBOs];
 
@@ -64,6 +64,7 @@ void onZKeyPressed();
 void onCKeyPressed();
 void onEKeyPressed();
 void onQKeyPressed();
+void onEscKeyPressed();
 
 
 int main(void)
@@ -118,12 +119,16 @@ int main(void)
 			onCKeyPressed();
 		}
 		if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
-			// Call the function continuously while C is held down
+			// Call the function continuously while E is held down
 			onEKeyPressed();
 		}
 		if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
-			// Call the function continuously while C is held down
+			// Call the function continuously while Q is held down
 			onQKeyPressed();
+		}
+		if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+			// Call the function continuously while Esc is held down
+			onEscKeyPressed();
 		}
 	}
 
@@ -134,11 +139,18 @@ int main(void)
 
 void init(GLFWwindow* window)
 {
-	renderingProgram = Utils::createShaderProgram("vertShader.glsl", "fragShader.glsl");
+	renderingProgram1 = Utils::createShaderProgram("vertShader.glsl", "fragShader.glsl");
 	/*cameraController.setPosition(0.0f, 20.0f, 10.0f);
 	cameraController.setOrientation(glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));*/
 	//cameraLoc = glm::vec3(0.0f, 20.0f, 10.0f);
 	planeLocX = 0.0f; planeLocY = 0.0f; planeLocZ = 0.0f;
+
+	mvLoc = glGetUniformLocation(renderingProgram1, "mv_matrix");
+	pLoc = glGetUniformLocation(renderingProgram1, "p_matrix");
+	isLineLoc = glGetUniformLocation(renderingProgram1, "isLine");
+	isRowLoc = glGetUniformLocation(renderingProgram1, "isRow");
+	isAxesLoc = glGetUniformLocation(renderingProgram1, "isAxes");
+
 	setupCamera();
 	setupVertices();
 }
@@ -209,13 +221,8 @@ void display(GLFWwindow* window, double currentTime)
 	glClear(GL_DEPTH_BUFFER_BIT);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	glUseProgram(renderingProgram);
+	glUseProgram(renderingProgram1);
 
-	mvLoc = glGetUniformLocation(renderingProgram, "mv_matrix");
-	pLoc = glGetUniformLocation(renderingProgram, "p_matrix");
-	isLineLoc = glGetUniformLocation(renderingProgram, "isLine");
-	isRowLoc = glGetUniformLocation(renderingProgram, "isRow");
-	isAxesLoc = glGetUniformLocation(renderingProgram, "isAxes");
 
 	// Set up frustum and perspective matrix
 	glfwGetFramebufferSize(window, &width, &height);
@@ -510,4 +517,10 @@ void onQKeyPressed()
 	//	0.0f, 0.0f, 0.0f, 1.0f
 	//);
 	// ------------------------------------------------------------------------------------------------------------
+}
+
+void onEscKeyPressed()
+{
+	std::cout << "Q key pressed" << std::endl;
+	exit(EXIT_SUCCESS);
 }

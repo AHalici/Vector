@@ -14,20 +14,46 @@
 using namespace std;
 
 #define numVAOs 1
-#define numVBOs 5
+#define numVBOs 7
+
+glm::vec3 vector3(float x, float y, float z);
 
 GLuint renderingProgram1, renderingProgram2;
 GLuint vao[numVAOs];
 GLuint vbo[numVBOs];
 
+// white light
+float globalAmbient[4] = { 0.7f, 0.7f, 0.7f, 1.0f };
+float lightAmbient[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+float lightDiffuse[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+float lightSpecular[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+// gold material
+float* gMatAmb = Utils::goldAmbient();
+float* gMatDif = Utils::goldDiffuse();
+float* gMatSpe = Utils::goldSpecular();
+float gMatShi = Utils::goldShininess();
+
+// bronze material
+float* bMatAmb = Utils::bronzeAmbient();
+float* bMatDif = Utils::bronzeDiffuse();
+float* bMatSpe = Utils::bronzeSpecular();
+float bMatShi = Utils::bronzeShininess();
+
+float thisAmb[4], thisDif[4], thisSpe[4], matAmb[4], matDif[4], matSpe[4];
+float thisShi, matShi;
+
 // Display variables
-GLuint mvLoc, pLoc;
+GLuint mvLoc, mLoc, vLoc, pLoc, nLoc, sLoc;
 int width, height;
 float aspect;
-glm::mat4 pmMat, vlmMat, hlmMat, amMat, vMat, pMat, mvMat, cameraTMat, cameraRMat;
-
+glm::mat4 pmMat, vlmMat, hlmMat, amMat, vMat, pMat, mvMat, invTrMat, cameraTMat, cameraRMat;
+glm::vec3 currentLightPos;
+float lightPos[3];
+GLuint globalAmbLoc, ambLoc, diffLoc, specLoc, posLoc, mambLoc, mdiffLoc, mspecLoc, mshiLoc;
+glm::vec3 lightLoc = vector3(10.0f, 20.0f, 20.0f); // TODO: use vector3 or glm::vec3?
+//glm::vec3 lightLoc = glm::vec3(0.0f, 30.0f, 5.0f);
 // Camera
-//glm::vec3 cameraLoc;
 glm::vec3 negativeCameraPosition;
 CameraController cameraController;
 
@@ -44,16 +70,28 @@ bool isRow = false;
 bool isAxes = false;
 GLuint isLineLoc, isRowLoc, isAxesLoc;
 
-
+// Shadow things
+int scSizeX, scSizeY;
+GLuint shadowTex, shadowBuffer;
+glm::mat4 lightVMatrix;
+glm::mat4 lightPMatrix;
+glm::mat4 shadowMVP1;
+glm::mat4 shadowMVP2;
+glm::mat4 b;
 
 float toRadians(float degrees) { return (degrees * 2.0f * 3.14159f) / 360.0f; }
 void setupVertices();
 void init(GLFWwindow* window);
 void display(GLFWwindow* window, double currentTime);
 glm::vec3 convert(glm::vec3 ogVec);
-glm::vec3 vector3(float x, float y, float z);
 void setupCamera();
 void updateCamera();
+
+void installLights(int renderingProgram);
+void setupShadowBuffers(GLFWwindow* window);
+
+void passOne();
+void passTwo();
 
 // Key press listeners for camera controller
 void onWKeyPressed();
@@ -139,20 +177,42 @@ int main(void)
 
 void init(GLFWwindow* window)
 {
-	renderingProgram1 = Utils::createShaderProgram("vertShader.glsl", "fragShader.glsl");
+	renderingProgram1 = Utils::createShaderProgram("vertShader1.glsl", "fragShader1.glsl");
+	renderingProgram2 = Utils::createShaderProgram("vertShader2.glsl", "fragShader2.glsl");
+
+	// Set up frustum and perspective matrix
+	glfwGetFramebufferSize(window, &width, &height);
+	aspect = (float)width / (float)height;
+	pMat = glm::perspective(1.0472f, aspect, 0.1f, 1000.0f); // 1.0472 is about 60 degrees in radians
+
 	/*cameraController.setPosition(0.0f, 20.0f, 10.0f);
 	cameraController.setOrientation(glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));*/
 	//cameraLoc = glm::vec3(0.0f, 20.0f, 10.0f);
 	planeLocX = 0.0f; planeLocY = 0.0f; planeLocZ = 0.0f;
 
-	mvLoc = glGetUniformLocation(renderingProgram1, "mv_matrix");
-	pLoc = glGetUniformLocation(renderingProgram1, "p_matrix");
-	isLineLoc = glGetUniformLocation(renderingProgram1, "isLine");
-	isRowLoc = glGetUniformLocation(renderingProgram1, "isRow");
-	isAxesLoc = glGetUniformLocation(renderingProgram1, "isAxes");
+
+	// TODO: changed to renderingProgram2
+	mLoc = glGetUniformLocation(renderingProgram2, "m_matrix");
+	vLoc = glGetUniformLocation(renderingProgram2, "v_matrix");
+	mvLoc = glGetUniformLocation(renderingProgram2, "mv_matrix");
+	pLoc = glGetUniformLocation(renderingProgram2, "p_matrix");
+	isLineLoc = glGetUniformLocation(renderingProgram2, "isLine");
+	isRowLoc = glGetUniformLocation(renderingProgram2, "isRow");
+	isAxesLoc = glGetUniformLocation(renderingProgram2, "isAxes");
+	nLoc = glGetUniformLocation(renderingProgram2, "norm_matrix");
+	sLoc = glGetUniformLocation(renderingProgram2, "shadowMVP");
 
 	setupCamera();
 	setupVertices();
+	setupShadowBuffers(window);
+
+	b = glm::mat4
+	(
+		0.5f, 0.0f, 0.0f, 0.0f,
+		0.0f, 0.5f, 0.0f, 0.0f,
+		0.0f, 0.0f, 0.5f, 0.0f,
+		0.5f, 0.5f, 0.5f, 1.0f
+	);
 }
 
 void setupVertices()
@@ -192,6 +252,22 @@ void setupVertices()
 		0.0f, 0.0f, 5.0f
 	};
 
+	float planeNormals[18] =
+	{
+		0.0f, 1.0f, 0.0f,  // Normal for vertex (-10.0, 0.0, 0.0)
+		0.0f, 1.0f, 0.0f,  // Normal for vertex (10.0, 0.0, 10.0)
+		0.0f, 1.0f, 0.0f,  // Normal for vertex (-10.0, 0.0, 10.0)
+		0.0f, 1.0f, 0.0f,  // Normal for vertex (-10.0, 0.0, 0.0)
+		0.0f, 1.0f, 0.0f,  // Normal for vertex (10.0, 0.0, 0.0)
+		0.0f, 1.0f, 0.0f   // Normal for vertex (10.0, 0.0, 10.0)
+	};
+
+	float lineNormals[6] =
+	{
+		0.0f, 1.0f, 0.0f,
+		0.0f, 1.0f, 0.0f
+	};
+
 	planeNumVertices = 6;
 	lineNumVertices = 2;
 
@@ -214,6 +290,12 @@ void setupVertices()
 
 	glBindBuffer(GL_ARRAY_BUFFER, vbo[4]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(zlineVertexPositions), zlineVertexPositions, GL_STATIC_DRAW);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[5]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(planeNormals), planeNormals, GL_STATIC_DRAW);
+	
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[6]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(lineNormals), lineNormals, GL_STATIC_DRAW);
 }
 
 void display(GLFWwindow* window, double currentTime)
@@ -221,119 +303,141 @@ void display(GLFWwindow* window, double currentTime)
 	glClear(GL_DEPTH_BUFFER_BIT);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	glUseProgram(renderingProgram1);
+	currentLightPos = lightLoc;
 
+	lightVMatrix = glm::lookAt(currentLightPos, vector3(0.0f, 0.0f, 0.0f), vector3(0.0f, 1.0f, 0.0f));
+	lightPMatrix = pMat;//glm::perspective(1.0472f, aspect, 0.1f, 1000.0f);
 
-	// Set up frustum and perspective matrix
-	glfwGetFramebufferSize(window, &width, &height);
-	aspect = (float)width / (float)height;
-	pMat = glm::perspective(1.0472f, aspect, 0.1f, 1000.0f); // 1.0472 is about 60 degrees in radians
+	glBindFramebuffer(GL_FRAMEBUFFER, shadowBuffer);
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadowTex, 0);
 
-
-	/*cameraTMat = glm::mat4(
-		1.0f, 0.0f, 0.0f, 0.0f,
-		0.0f, 1.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		cameraController.getPosition().x, cameraController.getPosition().y, cameraController.getPosition().z, 1.0f
-	);
-
-	negativeCameraPosition = -cameraController.getPosition();
-	cameraTMat = glm::translate(glm::mat4(1.0f), negativeCameraPosition);
-
-	cameraRMat = glm::mat4(
-		cameraController.getU().x, cameraController.getV().x, -cameraController.getN().x, 0.0f,
-		cameraController.getU().y, cameraController.getV().y, -cameraController.getN().y, 0.0f,
-		cameraController.getU().z, cameraController.getV().z, -cameraController.getN().z, 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f
-	);*/
-
-
-
-	// View, Model, and Model-View matrices
-	//vMat = glm::translate(glm::mat4(1.0f), -cameraLoc);
-	//vMat = glm::rotate(vMat, toRadians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-	//vMat = glm::lookAt(glm::vec3(0.0f, 20.0f, 0.0f), glm::vec3(planeLocX, planeLocY, planeLocZ), glm::vec3(0.0f, 0.0f, -1.0f));
-	
-
-
-	/*vMat = glm::rotate(glm::mat4(1.0f), toRadians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-	vMat = glm::rotate(vMat, toRadians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-	vMat = glm::translate(vMat, -cameraLoc);*/
-
-	updateCamera();
-	vMat = cameraRMat * cameraTMat;
-
-	/*vMat = glm::lookAt(
-		glm::vec3(0.0f, 20.0f, 0.0f),
-		glm::vec3(0.0f, 0.0f, 0.0f),
-		glm::vec3(0.0f, 0.0f, -1.0f)
-	);*/
-	
-
-	// ----------------------------------------- Plane -----------------------------------------
-	pmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 2.0f, 1.0f));
-	pmMat = glm::translate(pmMat, vector3(planeLocX, planeLocY, planeLocZ));
-	mvMat = vMat * pmMat;
-
-	isLine = false;
-	isRow = false;
-	glUniform1i(isRowLoc, isRow);
-	glUniform1i(isLineLoc, isLine);
-
-	// Model-View matrix pointer sent to uniforms
-	glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
-	glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
-
-	// Bind vertex attribute to vbo[0] values and enable vertex attribute
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
-	glEnableVertexAttribArray(0);
-
+	glDrawBuffer(GL_NONE);
 	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
+	glEnable(GL_POLYGON_OFFSET_FILL);
+	glPolygonOffset(2.0f, 4.0f);
 
-	glDrawArrays(GL_TRIANGLES, 0, planeNumVertices);
+	passOne();
+
+	glDisable(GL_POLYGON_OFFSET_FILL);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, shadowTex);
+
+	glDrawBuffer(GL_FRONT);
+
+	passTwo();
+
+	// -----------------------------------------------------------------------------------------------------------
+	// -----------------------------------------------------------------------------------------------------------
+
+	//glUseProgram(renderingProgram1);
 
 
-	// ----------------------------------------- Vertical Lines (Blue) -----------------------------------------
-	vlmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 4.0f, 1.0f));
-	//vlmMat = glm::rotate(vlmMat, toRadians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	vlmMat = glm::translate(vlmMat, vector3(10.0f, 0.0f, 0.0f));
-	//vlmMat = glm::rotate(vlmMat, toRadians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	mvMat = vMat * vlmMat;
+	///*cameraTMat = glm::mat4(
+	//	1.0f, 0.0f, 0.0f, 0.0f,
+	//	0.0f, 1.0f, 0.0f, 0.0f,
+	//	0.0f, 0.0f, 1.0f, 0.0f,
+	//	cameraController.getPosition().x, cameraController.getPosition().y, cameraController.getPosition().z, 1.0f
+	//);
 
-	glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+	//negativeCameraPosition = -cameraController.getPosition();
+	//cameraTMat = glm::translate(glm::mat4(1.0f), negativeCameraPosition);
 
-	isLine = true;
-	glUniform1i(isLineLoc, isLine);
+	//cameraRMat = glm::mat4(
+	//	cameraController.getU().x, cameraController.getV().x, -cameraController.getN().x, 0.0f,
+	//	cameraController.getU().y, cameraController.getV().y, -cameraController.getN().y, 0.0f,
+	//	cameraController.getU().z, cameraController.getV().z, -cameraController.getN().z, 0.0f,
+	//	0.0f, 0.0f, 0.0f, 1.0f
+	//);*/
 
-	// Bind vertex attribute to vbo[1] values and enable vertex attribute
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[4]);
-	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
-	glEnableVertexAttribArray(0);
 
-	glDrawArraysInstanced(GL_LINES, 0, lineNumVertices, 21);
-	isLine = false;
-	glUniform1i(isLineLoc, isLine);
 
-	// ----------------------------------------- Horizontal Lines (Green) -----------------------------------------
-	isRow = true;
-	glUniform1i(isRowLoc, isRow);
+	//// View, Model, and Model-View matrices
+	////vMat = glm::translate(glm::mat4(1.0f), -cameraLoc);
+	////vMat = glm::rotate(vMat, toRadians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	////vMat = glm::lookAt(glm::vec3(0.0f, 20.0f, 0.0f), glm::vec3(planeLocX, planeLocY, planeLocZ), glm::vec3(0.0f, 0.0f, -1.0f));
+	//
 
-	hlmMat = glm::scale(glm::mat4(1.0f), glm::vec3(4.0f, 2.0f, 1.0f));
-	hlmMat = glm::translate(hlmMat, vector3(2.5f, 20.0f, 0.0f));
-	mvMat = vMat * hlmMat;
 
-	glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+	///*vMat = glm::rotate(glm::mat4(1.0f), toRadians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	//vMat = glm::rotate(vMat, toRadians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	//vMat = glm::translate(vMat, -cameraLoc);*/
 
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
-	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
-	glEnableVertexAttribArray(0);
+	//updateCamera();
+	//vMat = cameraRMat * cameraTMat;
 
-	glDrawArraysInstanced(GL_LINES, 0, lineNumVertices, 21);
-	
-	isRow = false;
-	glUniform1i(isRowLoc, isRow);
+	///*vMat = glm::lookAt(
+	//	glm::vec3(0.0f, 20.0f, 0.0f),
+	//	glm::vec3(0.0f, 0.0f, 0.0f),
+	//	glm::vec3(0.0f, 0.0f, -1.0f)
+	//);*/
+	//
+
+	//// ----------------------------------------- Plane -----------------------------------------
+	//pmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 2.0f, 1.0f));
+	//pmMat = glm::translate(pmMat, vector3(planeLocX, planeLocY, planeLocZ));
+	//mvMat = vMat * pmMat;
+
+	//isLine = false;
+	//isRow = false;
+	//glUniform1i(isRowLoc, isRow);
+	//glUniform1i(isLineLoc, isLine);
+
+	//// Model-View matrix pointer sent to uniforms
+	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+	//glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+
+	//// Bind vertex attribute to vbo[0] values and enable vertex attribute
+	//glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+	//glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	//glEnableVertexAttribArray(0);
+
+	//glEnable(GL_DEPTH_TEST);
+	//glDepthFunc(GL_LEQUAL);
+
+	//glDrawArrays(GL_TRIANGLES, 0, planeNumVertices);
+
+
+	//// ----------------------------------------- Vertical Lines (Blue) -----------------------------------------
+	//vlmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 4.0f, 1.0f));
+	////vlmMat = glm::rotate(vlmMat, toRadians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	//vlmMat = glm::translate(vlmMat, vector3(10.0f, 0.0f, 0.0f));
+	////vlmMat = glm::rotate(vlmMat, toRadians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	//mvMat = vMat * vlmMat;
+
+	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+
+	//isLine = true;
+	//glUniform1i(isLineLoc, isLine);
+
+	//// Bind vertex attribute to vbo[1] values and enable vertex attribute
+	//glBindBuffer(GL_ARRAY_BUFFER, vbo[4]);
+	//glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	//glEnableVertexAttribArray(0);
+
+	//glDrawArraysInstanced(GL_LINES, 0, lineNumVertices, 21);
+	//isLine = false;
+	//glUniform1i(isLineLoc, isLine);
+
+	//// ----------------------------------------- Horizontal Lines (Green) -----------------------------------------
+	//isRow = true;
+	//glUniform1i(isRowLoc, isRow);
+
+	//hlmMat = glm::scale(glm::mat4(1.0f), glm::vec3(4.0f, 2.0f, 1.0f));
+	//hlmMat = glm::translate(hlmMat, vector3(2.5f, 20.0f, 0.0f));
+	//mvMat = vMat * hlmMat;
+
+	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+
+	//glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+	//glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	//glEnableVertexAttribArray(0);
+
+	//glDrawArraysInstanced(GL_LINES, 0, lineNumVertices, 21);
+	//
+	//isRow = false;
+	//glUniform1i(isRowLoc, isRow);
 
 	//// ----------------------------------------- Axes -----------------------------------------
 	//// ----------------------------------------- X-axis (Red)
@@ -395,10 +499,268 @@ void display(GLFWwindow* window, double currentTime)
 	//glUniform1i(isLineLoc, isLine);
 }
 
+void passOne()
+{
+	glUseProgram(renderingProgram1);
+
+	pmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 2.0f, 1.0f));
+	pmMat = glm::translate(pmMat, vector3(planeLocX, planeLocY, planeLocZ));
+
+	shadowMVP1 = lightPMatrix * lightVMatrix * pmMat;
+	sLoc = glGetUniformLocation(renderingProgram1, "shadowMVP");
+	glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
+
+	// Bind vertex attribute to vbo[0] values and enable vertex attribute
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	glClear(GL_DEPTH_BUFFER_BIT);
+	glEnable(GL_CULL_FACE);
+	glFrontFace(GL_CCW);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+
+	glDrawArrays(GL_TRIANGLES, 0, planeNumVertices);
+}
+
+void passTwo()
+{
+	glUseProgram(renderingProgram2);
+
+	// ----------------------------------------- Plane -----------------------------------------
+
+	thisAmb[0] = bMatAmb[0]; thisAmb[1] = bMatAmb[1]; thisAmb[2] = bMatAmb[2];  // bronze
+	thisDif[0] = bMatDif[0]; thisDif[1] = bMatDif[1]; thisDif[2] = bMatDif[2];
+	thisSpe[0] = bMatSpe[0]; thisSpe[1] = bMatSpe[1]; thisSpe[2] = bMatSpe[2];
+	thisShi = bMatShi;
+
+	// Set VIEW matrix
+	updateCamera();
+	vMat = cameraRMat * cameraTMat;
+
+	pmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 2.0f, 1.0f));
+	pmMat = glm::translate(pmMat, vector3(planeLocX, planeLocY, planeLocZ));
+
+	currentLightPos = lightLoc;
+	installLights(renderingProgram2);
+
+	invTrMat = glm::transpose(glm::inverse(pmMat));
+	shadowMVP2 = b * lightPMatrix * lightVMatrix * pmMat;
+
+	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(pmMat));
+	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
+	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+	glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+	glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
+	glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+
+	// Plane VERTICES
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	// Plane NORMALS
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[5]);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(1);
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+
+	glDrawArrays(GL_TRIANGLES, 0, planeNumVertices);
+
+	// -----------------------------------------------------------------------------------------
+
+	// ----------------------------------------- Vertical Lines (Blue) -----------------------------------------
+
+	thisAmb[0] = gMatAmb[0]; thisAmb[1] = gMatAmb[1]; thisAmb[2] = gMatAmb[2];  // gold
+	thisDif[0] = gMatDif[0]; thisDif[1] = gMatDif[1]; thisDif[2] = gMatDif[2];
+	thisSpe[0] = gMatSpe[0]; thisSpe[1] = gMatSpe[1]; thisSpe[2] = gMatSpe[2];
+	thisShi = gMatShi;
+
+	vlmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 4.0f, 1.0f));
+	vlmMat = glm::translate(vlmMat, vector3(10.0f, 0.0f, 0.0f));
+	//mvMat = vMat * vlmMat;
+
+	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+
+	currentLightPos = lightLoc;
+	installLights(renderingProgram2);
+
+	invTrMat = glm::transpose(glm::inverse(vlmMat));
+	shadowMVP2 = b * lightPMatrix * lightVMatrix * vlmMat;
+
+	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(vlmMat));
+	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
+	glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+	glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
+	glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+	
+	isLine = true;
+	glUniform1i(isLineLoc, isLine);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[4]);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[6]);
+	glVertexAttribPointer(1, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+
+	glDrawArraysInstanced(GL_LINES, 0, lineNumVertices, 21);
+	isLine = false;
+	glUniform1i(isLineLoc, isLine);
+
+	// -----------------------------------------------------------------------------------------
+
+	// ----------------------------------------- Horizontal Lines (Green) -----------------------------------------
+	
+	thisAmb[0] = gMatAmb[0]; thisAmb[1] = gMatAmb[1]; thisAmb[2] = gMatAmb[2];  // gold
+	thisDif[0] = gMatDif[0]; thisDif[1] = gMatDif[1]; thisDif[2] = gMatDif[2];
+	thisSpe[0] = gMatSpe[0]; thisSpe[1] = gMatSpe[1]; thisSpe[2] = gMatSpe[2];
+	thisShi = gMatShi;
+	
+	isRow = true;
+	glUniform1i(isRowLoc, isRow);
+
+	hlmMat = glm::scale(glm::mat4(1.0f), glm::vec3(4.0f, 2.0f, 1.0f));
+	hlmMat = glm::translate(hlmMat, vector3(2.5f, 20.0f, 0.0f));
+	//mvMat = vMat * hlmMat;
+
+	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+
+	currentLightPos = lightLoc;
+	installLights(renderingProgram2);
+
+	invTrMat = glm::transpose(glm::inverse(hlmMat));
+	shadowMVP2 = b * lightPMatrix * lightVMatrix * hlmMat;
+
+	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(hlmMat));
+	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
+	glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+	glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
+	glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+
+	glDrawArraysInstanced(GL_LINES, 0, lineNumVertices, 21);
+
+	isRow = false;
+	glUniform1i(isRowLoc, isRow);
+
+
+	//// ----------------------------------------- Axes -----------------------------------------
+	//// ----------------------------------------- X-axis (Red)
+	//isAxes = true;
+	//glUniform1i(isAxesLoc, isAxes);
+
+	//amMat = glm::rotate(glm::mat4(1.0f), toRadians(165.0f), vector3(0.0f, 1.0f, 0.0f));
+	//amMat = glm::translate(amMat, vector3(0.0f, -5.0f, 0.0f));
+	////amMat = glm::rotate(amMat, toRadians(90.0f), xAxis);
+	////mvMat = vMat * amMat;
+
+	//currentLightPos = lightLoc;
+	//installLights(renderingProgram2);
+
+	//invTrMat = glm::transpose(glm::inverse(amMat));
+	//shadowMVP2 = b * lightPMatrix * lightVMatrix * amMat;
+
+	//glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(amMat));
+	//glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
+	//glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+	//glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
+	//glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+
+	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+
+	//glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+	//glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	//glEnableVertexAttribArray(0);
+
+	//glDrawArrays(GL_LINES, 0, lineNumVertices);
+	//isAxes = false;
+	//glUniform1i(isAxesLoc, isAxes);
+
+	//// ----------------------------------------- Y-axis (World) - (Z-axis converted) (Green)
+	//isRow = true;
+	//glUniform1i(isRowLoc, isRow);
+
+	//amMat = glm::rotate(glm::mat4(1.0f), toRadians(-15.0f), vector3(0.0f, 1.0f, 0.0f));
+	//amMat = glm::translate(amMat, vector3(0.0f, -5.0f, 0.0f));
+	///*mvMat = vMat * amMat;
+
+	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));*/
+
+	//currentLightPos = lightLoc;
+	//installLights(renderingProgram2);
+
+	//invTrMat = glm::transpose(glm::inverse(amMat));
+	//shadowMVP2 = b * lightPMatrix * lightVMatrix * amMat;
+
+	//glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(amMat));
+	//glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
+	//glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+	//glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
+	//glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+
+	//glBindBuffer(GL_ARRAY_BUFFER, vbo[3]);
+	//glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	//glEnableVertexAttribArray(0);
+
+	//glDrawArrays(GL_LINES, 0, lineNumVertices);
+	//isRow = false;
+	//glUniform1i(isRowLoc, isRow);
+
+	//// ----------------------------------------- Z-axis (World) - (Y-axis converted) (Blue)
+	//isLine = true;
+	//glUniform1i(isLineLoc, isLine);
+
+	////amMat = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, 1.0f, 2.0f));
+	////amMat = glm::rotate(glm::mat4(1.0f), toRadians(45.0f), vector3(0.0f, 0.0f, 0.0f));
+	//amMat = glm::translate(glm::mat4(1.0f), vector3(0.0f, -5.0f, 0.0f));
+	//
+	////amMat = glm::rotate(amMat, toRadians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	///*mvMat = vMat * amMat;
+
+	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));*/
+
+
+	//currentLightPos = lightLoc;
+	//installLights(renderingProgram2);
+
+	//invTrMat = glm::transpose(glm::inverse(amMat));
+	//shadowMVP2 = b * lightPMatrix * lightVMatrix * amMat;
+
+	//glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(amMat));
+	//glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
+	//glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+	//glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
+	//glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+
+	//glBindBuffer(GL_ARRAY_BUFFER, vbo[4]);
+	//glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	//glEnableVertexAttribArray(0);
+
+	//glDrawArrays(GL_LINES, 0, lineNumVertices);
+	//isLine = false;
+	//glUniform1i(isLineLoc, isLine);
+}
+
 void setupCamera()
 {
 	cameraController.setPosition(0.0f, 20.0f, 10.0f);
-	cameraController.setOrientation(glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+	//cameraController.setOrientation(glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+	cameraController.setOrientation(vector3(1.0f, 0.0f, 0.0f), vector3(0.0f, 1.0f, 0.0f), vector3(0.0f, 0.0f, -1.0f));
+
 }
 
 void updateCamera()
@@ -436,7 +798,6 @@ void onWKeyPressed()
 	std::cout << "W key pressed" << std::endl;
 	cameraController.moveForward();
 }
-
 
 void onSKeyPressed() 
 {
@@ -523,4 +884,59 @@ void onEscKeyPressed()
 {
 	std::cout << "Q key pressed" << std::endl;
 	exit(EXIT_SUCCESS);
+}
+
+void installLights(int renderingProgram)
+{
+	lightPos[0] = currentLightPos.x;
+	lightPos[1] = currentLightPos.y;
+	lightPos[2] = currentLightPos.z;
+
+	matAmb[0] = thisAmb[0]; matAmb[1] = thisAmb[1]; matAmb[2] = thisAmb[2]; matAmb[3] = thisAmb[3];
+	matDif[0] = thisDif[0]; matDif[1] = thisDif[1]; matDif[2] = thisDif[2]; matDif[3] = thisDif[3];
+	matSpe[0] = thisSpe[0]; matSpe[1] = thisSpe[1]; matSpe[2] = thisSpe[2]; matSpe[3] = thisSpe[3];
+	matShi = thisShi;
+
+	// get the locations of the light and material fields in the shader
+	globalAmbLoc = glGetUniformLocation(renderingProgram, "globalAmbient");
+	ambLoc = glGetUniformLocation(renderingProgram, "light.ambient");
+	diffLoc = glGetUniformLocation(renderingProgram, "light.diffuse");
+	specLoc = glGetUniformLocation(renderingProgram, "light.specular");
+	posLoc = glGetUniformLocation(renderingProgram, "light.position");
+	mambLoc = glGetUniformLocation(renderingProgram, "material.ambient");
+	mdiffLoc = glGetUniformLocation(renderingProgram, "material.diffuse");
+	mspecLoc = glGetUniformLocation(renderingProgram, "material.specular");
+	mshiLoc = glGetUniformLocation(renderingProgram, "material.shininess");
+
+	//  set the uniform light and material values in the shader
+	glProgramUniform4fv(renderingProgram, globalAmbLoc, 1, globalAmbient);
+	glProgramUniform4fv(renderingProgram, ambLoc, 1, lightAmbient);
+	glProgramUniform4fv(renderingProgram, diffLoc, 1, lightDiffuse);
+	glProgramUniform4fv(renderingProgram, specLoc, 1, lightSpecular);
+	glProgramUniform3fv(renderingProgram, posLoc, 1, lightPos);
+	glProgramUniform4fv(renderingProgram, mambLoc, 1, matAmb);
+	glProgramUniform4fv(renderingProgram, mdiffLoc, 1, matDif);
+	glProgramUniform4fv(renderingProgram, mspecLoc, 1, matSpe);
+	glProgramUniform1f(renderingProgram, mshiLoc, matShi);
+}
+
+void setupShadowBuffers(GLFWwindow* window)
+{
+	glfwGetFramebufferSize(window, &width, &height);
+	scSizeX = width;
+	scSizeY = height;
+
+	glGenFramebuffers(1, &shadowBuffer);
+
+	glGenTextures(1, &shadowTex);
+	glBindTexture(GL_TEXTURE_2D, shadowTex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, scSizeX, scSizeY, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+
+	// may reduce shadow border artifacts
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }

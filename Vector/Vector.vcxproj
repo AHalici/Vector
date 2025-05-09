@@ -142,8 +142,10 @@
     <ClCompile Include="Utils.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="fragShader.glsl" />
-    <None Include="vertShader.glsl" />
+    <None Include="fragShader1.glsl" />
+    <None Include="fragShader2.glsl" />
+    <None Include="vertShader1.glsl" />
+    <None Include="vertShader2.glsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CameraController.h" />

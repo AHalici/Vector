@@ -26,10 +26,16 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="fragShader.glsl">
+    <None Include="fragShader1.glsl">
       <Filter>Source Files</Filter>
     </None>
-    <None Include="vertShader.glsl">
+    <None Include="vertShader1.glsl">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="fragShader2.glsl">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="vertShader2.glsl">
       <Filter>Source Files</Filter>
     </None>
   </ItemGroup>

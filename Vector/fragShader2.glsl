@@ -1,7 +1,5 @@
 #version 430
 
-//out vec4 fragColor;
-
 in vec3 varyingNormal, varyingLightDir, varyingVertPos, varyingHalfVec;
 in vec4 shadow_coord;
 out vec4 fragColor;
@@ -27,9 +25,6 @@ uniform mat4 shadowMVP;
 
 layout (binding=0) uniform sampler2DShadow shadowTex;
 
-//uniform mat4 mv_matrix;
-//uniform mat4 p_matrix;
-
 uniform bool isLine;
 uniform bool isRow;
 uniform bool isAxes;
@@ -44,22 +39,24 @@ float lookup(float x, float y)
 void main(void)
 {
 
-	//float shadowFactor = 0.0;
+	float shadowfactor = 0.0;
 
 	vec3 L = normalize(varyingLightDir);
 	vec3 N = normalize(varyingNormal);
+
+	// Accesses the 4th row of the view matrix which is the translation column which has our negated camera position in world space
 	vec3 V = normalize(-v_matrix[3].xyz - varyingVertPos);
 	vec3 H = normalize(varyingHalfVec);
 
 
-	/*float swidth = 2.5;
+	float swidth = 2.5;
 	vec2 o = mod(floor(gl_FragCoord.xy), 2.0) * swidth;
-	shadowFactor += lookup(-1.5*swidth + o.x,  1.5*swidth - o.y);
-	shadowFactor += lookup(-1.5*swidth + o.x, -0.5*swidth - o.y);
-	shadowFactor += lookup( 0.5*swidth + o.x,  1.5*swidth - o.y);
-	shadowFactor += lookup( 0.5*swidth + o.x, -0.5*swidth - o.y);
-	shadowFactor = shadowFactor / 4.0;*/
-
+	shadowfactor += lookup(-1.5*swidth + o.x,  1.5*swidth - o.y);
+	shadowfactor += lookup(-1.5*swidth + o.x, -0.5*swidth - o.y);
+	shadowfactor += lookup( 0.5*swidth + o.x,  1.5*swidth - o.y);
+	shadowfactor += lookup( 0.5*swidth + o.x, -0.5*swidth - o.y);
+	shadowfactor = shadowfactor / 4.0;
+	
 
 	vec4 shadowColor = globalAmbient * material.ambient
 				+ light.ambient * material.ambient;
@@ -68,7 +65,7 @@ void main(void)
 				+ light.specular * material.specular
 				* pow(max(dot(H,N),0.0),material.shininess*3.0);
 
-	fragColor = vec4((shadowColor.xyz + /*shadowFactor**/(lightedColor.xyz)),1.0);
+	fragColor = vec4((shadowColor.xyz + shadowfactor*(lightedColor.xyz)),1.0);
 
 	/*if (isLine)
 	{

@@ -56,6 +56,14 @@ void main(void)
 	shadowfactor += lookup( 0.5*swidth + o.x,  1.5*swidth - o.y);
 	shadowfactor += lookup( 0.5*swidth + o.x, -0.5*swidth - o.y);
 	shadowfactor = shadowfactor / 4.0;
+
+	float width = 2.5;
+	float endp = width * 3.0 + width/2.0;
+	for (float m=-endp ; m<=endp ; m=m+width)
+	{	for (float n=-endp ; n<=endp ; n=n+width)
+		{	shadowfactor += lookup(m,n);
+	}	}
+	shadowfactor = shadowfactor / 64.0;
 	
 
 	vec4 shadowColor = globalAmbient * material.ambient

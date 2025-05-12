@@ -57,7 +57,7 @@ glm::mat4 pmMat, vlmMat, hlmMat, amMat, cmMat, vMat, pMat, mvMat, invTrMat, came
 glm::vec3 currentLightPos;
 float lightPos[3];
 GLuint globalAmbLoc, ambLoc, diffLoc, specLoc, posLoc, mambLoc, mdiffLoc, mspecLoc, mshiLoc;
-glm::vec3 lightLoc = vector3(0.0f, 20.0f, 20.0f); // TODO: use vector3 or glm::vec3?
+glm::vec3 lightLoc = vector3(10.0f, 10.0f, 20.0f); // TODO: use vector3 or glm::vec3?
 //glm::vec3 lightLoc = glm::vec3(0.0f, 30.0f, 5.0f);
 
 // Camera
@@ -200,7 +200,7 @@ void init(GLFWwindow* window)
 
 
 	// TODO: changed to renderingProgram2
-	mLoc = glGetUniformLocation(renderingProgram2, "m_matrix");
+	/*mLoc = glGetUniformLocation(renderingProgram2, "m_matrix");
 	vLoc = glGetUniformLocation(renderingProgram2, "v_matrix");
 	mvLoc = glGetUniformLocation(renderingProgram2, "mv_matrix");
 	pLoc = glGetUniformLocation(renderingProgram2, "p_matrix");
@@ -208,10 +208,11 @@ void init(GLFWwindow* window)
 	isRowLoc = glGetUniformLocation(renderingProgram2, "isRow");
 	isAxesLoc = glGetUniformLocation(renderingProgram2, "isAxes");
 	nLoc = glGetUniformLocation(renderingProgram2, "norm_matrix");
-	sLoc = glGetUniformLocation(renderingProgram2, "shadowMVP");
+	sLoc = glGetUniformLocation(renderingProgram2, "shadowMVP");*/
 
-	setupCamera();
 	setupVertices();
+	setupCamera();
+	//setupVertices();
 	setupShadowBuffers(window);
 
 	// Bias Matrix = converts from light projection space [-1,1] to texture coordinates [0,1]
@@ -560,8 +561,10 @@ void passOne()
 {
 	glUseProgram(renderingProgram1);
 
+
 	cmMat = glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
-	cmMat = glm::translate(cmMat, vector3(2.0f * 0.0f, 2.0f * 10.0f, 2.0f * 2.2f)); // When we scale by 0.5, our translation vectors are also scaled, so 10.0f from before becomes 5.0f
+	cmMat = glm::translate(cmMat, vector3(2.0f * 0.0f, 2.0f * 5.0f, 2.0f * 2.2f)); // When we scale by 0.5, our translation vectors are also scaled, so 10.0f from before becomes 5.0f
+	//cmMat = glm::translate(glm::mat4(1.0f), vector3(0.0f, 10.0f, 2.0f));
 
 	shadowMVP1 = lightPMatrix * lightVMatrix * cmMat;
 	sLoc = glGetUniformLocation(renderingProgram1, "shadowMVP");
@@ -580,27 +583,28 @@ void passOne()
 
 	glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
 
-	
-	cmMat = glm::translate(glm::mat4(1.0f), vector3(2.0f * 0.0f, 2.0f * 10.0f, 2.0f * 4.0f));
 
-	shadowMVP1 = lightPMatrix * lightVMatrix * cmMat;
-	//sLoc = glGetUniformLocation(renderingProgram1, "shadowMVP");
-	glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
+	//cmMat = glm::translate(glm::mat4(1.0f), vector3(2.0f * 0.0f, 2.0f * 10.0f, 2.0f * 4.0f));
 
-	// Bind vertex attribute to vbo[7] values and enable vertex attribute
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[7]);
-	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
-	glEnableVertexAttribArray(0);
+	//shadowMVP1 = lightPMatrix * lightVMatrix * cmMat;
+	////sLoc = glGetUniformLocation(renderingProgram1, "shadowMVP");
+	//glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
 
-	//glClear(GL_DEPTH_BUFFER_BIT);
-	glEnable(GL_CULL_FACE);
-	glFrontFace(GL_CCW);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
+	//// Bind vertex attribute to vbo[7] values and enable vertex attribute
+	//glBindBuffer(GL_ARRAY_BUFFER, vbo[7]);
+	//glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	//glEnableVertexAttribArray(0);
 
-	glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
+	//////glClear(GL_DEPTH_BUFFER_BIT);
+	//glEnable(GL_CULL_FACE);
+	//glFrontFace(GL_CCW);
+	//glEnable(GL_DEPTH_TEST);
+	//glDepthFunc(GL_LEQUAL);
 
-	pmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 2.0f, 1.0f));
+	//glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
+
+
+	pmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 1.0f, 1.0f));
 	pmMat = glm::translate(pmMat, vector3(planeLocX, planeLocY, planeLocZ));
 
 	shadowMVP1 = lightPMatrix * lightVMatrix * pmMat;
@@ -620,30 +624,123 @@ void passOne()
 
 	glDrawArrays(GL_TRIANGLES, 0, planeNumVertices);
 
-	//cmMat = glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
-	//cmMat = glm::translate(cmMat, vector3(2.0f * 0.0f, 2.0f * 10.0f, 2.0f * 2.2f)); // When we scale by 0.5, our translation vectors are also scaled, so 10.0f from before becomes 5.0f
-
-	//shadowMVP1 = lightPMatrix * lightVMatrix * cmMat;
-	//sLoc = glGetUniformLocation(renderingProgram1, "shadowMVP");
-	//glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
-
-	//// Bind vertex attribute to vbo[7] values and enable vertex attribute
-	//glBindBuffer(GL_ARRAY_BUFFER, vbo[7]);
-	//glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
-	//glEnableVertexAttribArray(0);
-
-	////glClear(GL_DEPTH_BUFFER_BIT);
-	//glEnable(GL_CULL_FACE);
-	//glFrontFace(GL_CCW);
-	//glEnable(GL_DEPTH_TEST);
-	//glDepthFunc(GL_LEQUAL);
-
-	//glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
+	
 }
 
 void passTwo()
 {
 	glUseProgram(renderingProgram2);
+
+
+	mLoc = glGetUniformLocation(renderingProgram2, "m_matrix");
+	vLoc = glGetUniformLocation(renderingProgram2, "v_matrix");
+	mvLoc = glGetUniformLocation(renderingProgram2, "mv_matrix");
+	pLoc = glGetUniformLocation(renderingProgram2, "p_matrix");
+	isLineLoc = glGetUniformLocation(renderingProgram2, "isLine");
+	isRowLoc = glGetUniformLocation(renderingProgram2, "isRow");
+	isAxesLoc = glGetUniformLocation(renderingProgram2, "isAxes");
+	nLoc = glGetUniformLocation(renderingProgram2, "norm_matrix");
+	sLoc = glGetUniformLocation(renderingProgram2, "shadowMVP");
+
+	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	
+
+	// -----------------------------------------------------------------------------------------
+	// ----------------------------------------- Cube -----------------------------------------
+	
+	thisAmb[0] = bMatAmb[0]; thisAmb[1] = bMatAmb[1]; thisAmb[2] = bMatAmb[2];  // bronze
+	thisDif[0] = bMatDif[0]; thisDif[1] = bMatDif[1]; thisDif[2] = bMatDif[2];
+	thisSpe[0] = bMatSpe[0]; thisSpe[1] = bMatSpe[1]; thisSpe[2] = bMatSpe[2];
+	thisShi = bMatShi;
+
+	// Set VIEW matrix
+	updateCamera();
+	vMat = cameraRMat * cameraTMat;
+
+	cmMat = glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
+	cmMat = glm::translate(cmMat, vector3(2.0f*0.0f, 2.0f*5.0f, 2.0f*2.2f)); // When we scale by 0.5, our translation vectors are also scaled, so 10.0f from before becomes 5.0f
+	//cmMat = glm::scale(cmMat, vector3(0.5f, 0.5f, 0.5f));
+	//cmMat = glm::translate(glm::mat4(1.0f), vector3(0.0f, 10.0f, 2.0f));
+
+	currentLightPos = lightLoc;
+	installLights(renderingProgram2);
+
+	invTrMat = glm::transpose(glm::inverse(cmMat));
+	shadowMVP2 = b * lightPMatrix * lightVMatrix * cmMat;
+
+	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(cmMat));
+	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
+	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+	glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+	glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
+	glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+
+	// Cube VERTICES
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[7]);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	// Cube NORMALS
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[8]);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(1);
+
+	glClear(GL_DEPTH_BUFFER_BIT);
+	glDisable(GL_CULL_FACE);
+	glFrontFace(GL_CCW);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+
+	glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
+
+
+
+
+
+
+	//thisAmb[0] = bMatAmb[0]; thisAmb[1] = bMatAmb[1]; thisAmb[2] = bMatAmb[2];  // bronze
+	//thisDif[0] = bMatDif[0]; thisDif[1] = bMatDif[1]; thisDif[2] = bMatDif[2];
+	//thisSpe[0] = bMatSpe[0]; thisSpe[1] = bMatSpe[1]; thisSpe[2] = bMatSpe[2];
+	//thisShi = bMatShi;
+
+	//// Set VIEW matrix
+	//updateCamera();
+	//vMat = cameraRMat * cameraTMat;
+
+	//cmMat = glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
+	//cmMat = glm::translate(cmMat, vector3(2.0f * 0.0f, 2.0f * 10.0f, 2.0f * 4.0f)); // When we scale by 0.5, our translation vectors are also scaled, so 10.0f from before becomes 5.0f
+	////cmMat = glm::scale(cmMat, vector3(0.5f, 0.5f, 0.5f));
+
+	//currentLightPos = lightLoc;
+	//installLights(renderingProgram2);
+
+	//invTrMat = glm::transpose(glm::inverse(cmMat));
+	//shadowMVP2 = b * lightPMatrix * lightVMatrix * cmMat;
+
+	//glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(cmMat));
+	//glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
+	////glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+	//glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+	//glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
+	//glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+
+	//// Cube VERTICES
+	//glBindBuffer(GL_ARRAY_BUFFER, vbo[7]);
+	//glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	//glEnableVertexAttribArray(0);
+
+	//// Cube NORMALS
+	//glBindBuffer(GL_ARRAY_BUFFER, vbo[8]);
+	//glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	//glEnableVertexAttribArray(1);
+
+	//glDisable(GL_CULL_FACE);
+	//glEnable(GL_DEPTH_TEST);
+	//glDepthFunc(GL_LEQUAL);
+
+	//glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
+
+
 
 	// ----------------------------------------- Plane -----------------------------------------
 
@@ -656,7 +753,7 @@ void passTwo()
 	updateCamera();
 	vMat = cameraRMat * cameraTMat;
 
-	pmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 2.0f, 1.0f));
+	pmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 1.0f, 1.0f));
 	pmMat = glm::translate(pmMat, vector3(planeLocX, planeLocY, planeLocZ));
 
 	currentLightPos = lightLoc;
@@ -682,107 +779,14 @@ void passTwo()
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray(1);
 
-	glClear(GL_DEPTH_BUFFER_BIT);
+	//glClear(GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_CULL_FACE);
 	glFrontFace(GL_CCW);
-	glCullFace(GL_BACK);
+	//glCullFace(GL_BACK);
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
 
 	glDrawArrays(GL_TRIANGLES, 0, planeNumVertices);
-
-	// -----------------------------------------------------------------------------------------
-	// ----------------------------------------- Cube -----------------------------------------
-	
-	thisAmb[0] = bMatAmb[0]; thisAmb[1] = bMatAmb[1]; thisAmb[2] = bMatAmb[2];  // bronze
-	thisDif[0] = bMatDif[0]; thisDif[1] = bMatDif[1]; thisDif[2] = bMatDif[2];
-	thisSpe[0] = bMatSpe[0]; thisSpe[1] = bMatSpe[1]; thisSpe[2] = bMatSpe[2];
-	thisShi = bMatShi;
-
-	// Set VIEW matrix
-	updateCamera();
-	vMat = cameraRMat * cameraTMat;
-
-	cmMat = glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
-	cmMat = glm::translate(cmMat, vector3(2.0f*0.0f, 2.0f*10.0f, 2.0f*2.2f)); // When we scale by 0.5, our translation vectors are also scaled, so 10.0f from before becomes 5.0f
-	//cmMat = glm::scale(cmMat, vector3(0.5f, 0.5f, 0.5f));
-
-	currentLightPos = lightLoc;
-	installLights(renderingProgram2);
-
-	invTrMat = glm::transpose(glm::inverse(cmMat));
-	shadowMVP2 = b * lightPMatrix * lightVMatrix * cmMat;
-
-	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(cmMat));
-	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
-	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
-	glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
-	glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
-	glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
-
-	// Cube VERTICES
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[7]);
-	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
-	glEnableVertexAttribArray(0);
-
-	// Cube NORMALS
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[8]);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(1);
-
-	glDisable(GL_CULL_FACE);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
-
-	glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
-
-
-
-
-
-
-	thisAmb[0] = bMatAmb[0]; thisAmb[1] = bMatAmb[1]; thisAmb[2] = bMatAmb[2];  // bronze
-	thisDif[0] = bMatDif[0]; thisDif[1] = bMatDif[1]; thisDif[2] = bMatDif[2];
-	thisSpe[0] = bMatSpe[0]; thisSpe[1] = bMatSpe[1]; thisSpe[2] = bMatSpe[2];
-	thisShi = bMatShi;
-
-	// Set VIEW matrix
-	updateCamera();
-	vMat = cameraRMat * cameraTMat;
-
-	cmMat = glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
-	cmMat = glm::translate(cmMat, vector3(2.0f * 0.0f, 2.0f * 10.0f, 2.0f * 4.0f)); // When we scale by 0.5, our translation vectors are also scaled, so 10.0f from before becomes 5.0f
-	//cmMat = glm::scale(cmMat, vector3(0.5f, 0.5f, 0.5f));
-
-	currentLightPos = lightLoc;
-	installLights(renderingProgram2);
-
-	invTrMat = glm::transpose(glm::inverse(cmMat));
-	shadowMVP2 = b * lightPMatrix * lightVMatrix * cmMat;
-
-	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(cmMat));
-	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
-	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
-	glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
-	glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
-	glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
-
-	// Cube VERTICES
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[7]);
-	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
-	glEnableVertexAttribArray(0);
-
-	// Cube NORMALS
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[8]);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(1);
-
-	glDisable(GL_CULL_FACE);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
-
-	glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
-
 
 	// -----------------------------------------------------------------------------------------
 	// ----------------------------------------- Vertical Lines (Blue) -----------------------------------------

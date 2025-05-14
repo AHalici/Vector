@@ -23,13 +23,13 @@ void main(void)
     
     if (isLine)
     {
-        offsetPosition.x += float(col) * offsetAmount;
+        offsetPosition.x -= float(col) * offsetAmount;
 
         gl_Position = shadowMVP * vec4(offsetPosition, 1.0);
     }
     else if (isRow)
     {
-        offsetPosition.z -= float(row) * offsetAmount;
+        offsetPosition.z += float(row) * offsetAmount;
 
         gl_Position = shadowMVP * vec4(offsetPosition, 1.0);
     }

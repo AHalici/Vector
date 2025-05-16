@@ -9,6 +9,7 @@ out vec4 shadow_coord;
 struct PositionalLight
 {	vec4 ambient, diffuse, specular;
 	vec3 position;
+    vec3 direction;
 };
 struct Material
 {	vec4 ambient, diffuse, specular;   
@@ -25,6 +26,7 @@ uniform mat4 norm_matrix;
 uniform mat4 shadowMVP;
 
 layout (binding=0) uniform sampler2DShadow shadowTex;
+layout (binding=1) uniform sampler2DShadow spotlightShadowTex;
 
 uniform bool isLine;
 uniform bool isRow;

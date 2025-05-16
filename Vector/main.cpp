@@ -24,9 +24,9 @@ GLuint vbo[numVBOs];
 
 // white light
 float globalAmbient[4] = { 0.7f, 0.7f, 0.7f, 1.0f };
-float lightAmbient[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-float lightDiffuse[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-float lightSpecular[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+float lightAmbient[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
+float lightDiffuse[4] = { 1.2f, 1.2f, 1.2f, 1.0f };
+float lightSpecular[4] = { 0.5f, 0.5f, 0.5f, 0.0f };
 
 // gold material
 float* gMatAmb = Utils::goldAmbient();
@@ -59,7 +59,7 @@ float lightPos[3];
 GLuint globalAmbLoc, ambLoc, diffLoc, specLoc, posLoc, mambLoc, mdiffLoc, mspecLoc, mshiLoc;
 float timeBounds;
 //glm::vec3 cubeLoc = vector3(2.0f * 0.0f, timeBounds * 2.0f, 2.0f * 2.2f);
-glm::vec3 lightLoc = vector3(10.0f, 20.0f, 30.0f); // TODO: use vector3 or glm::vec3?
+glm::vec3 lightLoc = vector3(5.0f, 5.0f, 5.0f); // TODO: use vector3 or glm::vec3?
 //glm::vec3 lightLoc = glm::vec3(0.0f, 30.0f, 5.0f);
 
 // Camera
@@ -368,8 +368,8 @@ void display(GLFWwindow* window, double currentTime)
 	lightVMatrix = glm::lookAt(currentLightPos, vector3(0.0f, 0.0f, 0.0f), vector3(0.0f, 1.0f, 0.0f));
 	
 	// Changed to Orthographic Projection because it's better for lighting, but not for the camera
-	float orthoSize = 20.0f;
-	lightPMatrix = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize, 1.0f, 50.0f);
+	float orthoSize = 8.0f;
+	lightPMatrix = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize + 5.0f, 1.0f, 50.0f);
 	//lightPMatrix = glm::perspective(1.0472f, aspect, 0.1f, 1000.0f);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, shadowBuffer);

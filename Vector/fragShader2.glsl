@@ -31,6 +31,11 @@ uniform bool isLine;
 uniform bool isRow;
 uniform bool isAxes;
 
+float shadowfactor = 0.0;
+float kc = 0.0001;
+float kl = 0.02;
+float kq = 0.032;
+
 float lookup(float x, float y)
 {  	float t = textureProj(shadowTex, shadow_coord + vec4(x * 0.001 * shadow_coord.w,
                                                          y * 0.001 * shadow_coord.w,
@@ -40,13 +45,6 @@ float lookup(float x, float y)
 
 void main(void)
 {
-
-	float shadowfactor = 0.0;
-	float kc = 0.0001;
-	float kl = 0.02;
-	float kq = 0.032;
-
-
 	vec3 L = normalize(varyingLightDir);
 	vec3 N = normalize(varyingNormal);
 

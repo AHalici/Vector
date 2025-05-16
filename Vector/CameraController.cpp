@@ -124,7 +124,7 @@ void CameraController::moveDown()
 void CameraController::rotateRight(glm::mat4 &rMat)
 {
 	//cameraRMat = glm::rotate(glm::mat4(1.0f), -cameraController.getRotationAngle(), cameraController.getV());
-	rMat = glm::rotate(glm::mat4(1.0f), -rotationAngle, V);
+	rMat = glm::rotate(glm::mat4(1.0f), rotationAngle, V);
 	
 	U = glm::vec3(rMat * glm::vec4(U, 0.0f));
 	N = glm::vec3(rMat * glm::vec4(N, 0.0f));
@@ -137,7 +137,7 @@ void CameraController::rotateRight(glm::mat4 &rMat)
 void CameraController::rotateLeft(glm::mat4 &rMat)
 {
 
-	rMat = glm::rotate(glm::mat4(1.0f), rotationAngle, V);
+	rMat = glm::rotate(glm::mat4(1.0f), -rotationAngle, V);
 
 	U = rMat * glm::vec4(U, 0.0f);
 	N = rMat * glm::vec4(N, 0.0f);

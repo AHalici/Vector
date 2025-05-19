@@ -59,7 +59,7 @@ float lightPos[3];
 GLuint globalAmbLoc, ambLoc, diffLoc, specLoc, posLoc, mambLoc, mdiffLoc, mspecLoc, mshiLoc;
 float timeBounds;
 //glm::vec3 cubeLoc = vector3(2.0f * 0.0f, timeBounds * 2.0f, 2.0f * 2.2f);
-glm::vec3 lightLoc = vector3(5.0f, 10.0f, 10.0f); // TODO: use vector3 or glm::vec3?
+glm::vec3 lightLoc = vector3(5.0f, 10.0f, 10.0f); // If I make the light closer to the plane with the z value, the fov of the lightPMatrix isn't wide enough and the shadow has artifacts
 //glm::vec3 lightLoc = glm::vec3(0.0f, 30.0f, 5.0f);
 glm::vec3 cubeLoc = vector3(2.0f * 0.0f, timeBounds * 4.0f, 2.0f * 2.2f);
 

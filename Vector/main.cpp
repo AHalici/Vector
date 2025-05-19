@@ -59,7 +59,7 @@ float lightPos[3];
 GLuint globalAmbLoc, ambLoc, diffLoc, specLoc, posLoc, mambLoc, mdiffLoc, mspecLoc, mshiLoc;
 float timeBounds;
 //glm::vec3 cubeLoc = vector3(2.0f * 0.0f, timeBounds * 2.0f, 2.0f * 2.2f);
-glm::vec3 lightLoc = vector3(0.0f, 10.0f, 5.0f); // TODO: use vector3 or glm::vec3?
+glm::vec3 lightLoc = vector3(5.0f, 10.0f, 10.0f); // TODO: use vector3 or glm::vec3?
 //glm::vec3 lightLoc = glm::vec3(0.0f, 30.0f, 5.0f);
 glm::vec3 cubeLoc = vector3(2.0f * 0.0f, timeBounds * 4.0f, 2.0f * 2.2f);
 
@@ -368,25 +368,25 @@ void display(GLFWwindow* window, double currentTime)
 
 	cubeLoc = vector3(2.0f * 0.0f, timeBounds * 4.0f, 2.0f * 2.2f);
 
-	lightVMatrix = glm::lookAt(currentLightPos, cubeLoc, vector3(0.0f, 1.0f, 0.0f));
+	lightVMatrix = glm::lookAt(currentLightPos, vector3(0.0f, 10.0f, 0.0f), vector3(0.0f, 1.0f, 0.0f));
 	
 	// Changed to Orthographic Projection because it's better for directional lighting, but not for positional or spotlight
 		// Using Orthographic projection doesn't allow shadow to change angles when the object is moved or the light moves
 	//float orthoSize = 8.0f;
 	//lightPMatrix = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize + 5.0f, 1.0f, 50.0f);
-	lightPMatrix = glm::perspective(1.0472f, aspect, 0.1f, 1000.0f);
+	lightPMatrix = glm::perspective(toRadians(90.0f), aspect, 0.1f, 1000.0f);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, shadowBuffer);
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadowTex, 0);
 
 	glDrawBuffer(GL_NONE);
 	glEnable(GL_DEPTH_TEST);
-	//glEnable(GL_POLYGON_OFFSET_FILL); //--------------------- JUST REMOVED ---------------
-	//glPolygonOffset(2.0f, 4.0f); // ------------------- JUST REMOVED -------------
+	glEnable(GL_POLYGON_OFFSET_FILL); //--------------------- JUST REMOVED ---------------
+	glPolygonOffset(2.0f, 4.0f); // ------------------- JUST REMOVED -------------
 
 	passOne(currentTime);
 
-	//glDisable(GL_POLYGON_OFFSET_FILL); //-------------- JUST REMOVED -------------
+	glDisable(GL_POLYGON_OFFSET_FILL); //-------------- JUST REMOVED -------------
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glActiveTexture(GL_TEXTURE0);
@@ -597,7 +597,7 @@ void passOne(double time)
 	glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
 
 	cmMat = glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
-	cmMat = glm::translate(cmMat, vector3(2.0f * 0.0f, 2.0f * 5.0f, 2.0f * 4.0f));
+	cmMat = glm::translate(cmMat, vector3(4.0f * 1.0f, 2.0f * 5.0f, 2.0f * 4.0f));
 
 	shadowMVP1 = lightPMatrix * lightVMatrix * cmMat;
 	//sLoc = glGetUniformLocation(renderingProgram1, "shadowMVP");
@@ -721,7 +721,7 @@ void passTwo(double time)
 	vMat = cameraRMat * cameraTMat;
 
 	cmMat = glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
-	cmMat = glm::translate(cmMat, vector3(2.0f * 0.0f, 2.0f * 5.0f, 2.0f * 4.0f)); // When we scale by 0.5, our translation vectors are also scaled, so 10.0f from before becomes 5.0f
+	cmMat = glm::translate(cmMat, vector3(4.0f * 1.0f, 2.0f * 5.0f, 2.0f * 4.0f)); // When we scale by 0.5, our translation vectors are also scaled, so 10.0f from before becomes 5.0f
 	//cmMat = glm::scale(cmMat, vector3(0.5f, 0.5f, 0.5f));
 
 	currentLightPos = lightLoc;

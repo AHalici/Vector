@@ -38,8 +38,8 @@ float kq = 0.032;
 
 float lookup(float x, float y)
 {  	float t = textureProj(shadowTex, shadow_coord + vec4(x * 0.001 * shadow_coord.w,
-                                                         y * 0.001 * shadow_coord.w,
-                                                         -0.01, 0.0));
+														 y * 0.001 * shadow_coord.w,
+														 -0.01, 0.0));
 	return t;
 }
 
@@ -60,6 +60,7 @@ void main(void)
 	float attenuation = 1.0 / (kc + kl * distance + kq * distance * distance);
 
 
+	float t = textureProj(shadowTex, shadow_coord);
 
 	float swidth = 2.5;
 	vec2 o = mod(floor(gl_FragCoord.xy), 2.0) * swidth;
@@ -69,13 +70,14 @@ void main(void)
 	shadowfactor += lookup( 0.5*swidth + o.x, -0.5*swidth - o.y);
 	shadowfactor = shadowfactor / 4.0;
 
+	/*
 	float width = 2.5;
 	float endp = width * 3.0 + width/2.0;
 	for (float m=-endp ; m<=endp ; m=m+width)
 	{	for (float n=-endp ; n<=endp ; n=n+width)
 		{	shadowfactor += lookup(m,n);
 	}	}
-	shadowfactor = shadowfactor / 64.0;
+	shadowfactor = shadowfactor / 64.0;*/
 	
 
 	vec4 shadowColor = globalAmbient * material.ambient

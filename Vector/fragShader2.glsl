@@ -60,8 +60,6 @@ void main(void)
 	float attenuation = 1.0 / (kc + kl * distance + kq * distance * distance);
 
 
-	float t = textureProj(shadowTex, shadow_coord);
-
 	float swidth = 2.5;
 	vec2 o = mod(floor(gl_FragCoord.xy), 2.0) * swidth;
 	shadowfactor += lookup(-1.5*swidth + o.x,  1.5*swidth - o.y);

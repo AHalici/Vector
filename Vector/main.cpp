@@ -368,7 +368,11 @@ void display(GLFWwindow* window, double currentTime)
 
 	cubeLoc = vector3(2.0f * 0.0f, timeBounds * 4.0f, 2.0f * 2.2f);
 
-	lightVMatrix = glm::lookAt(currentLightPos, vector3(0.0f, 10.0f, 0.0f), vector3(0.0f, 1.0f, 0.0f));
+	// Sets the origin of the lightVMatrix to the higher of the two (9.0f or cubeLoc.y)
+	float highestPoint = std::max(9.0f, cubeLoc.y);
+	glm::vec3 lightTarget = vector3(0.0f, highestPoint, 0.0f);
+
+	lightVMatrix = glm::lookAt(currentLightPos, lightTarget, vector3(0.0f, 1.0f, 0.0f));
 	
 	// Changed to Orthographic Projection because it's better for directional lighting, but not for positional or spotlight
 		// Using Orthographic projection doesn't allow shadow to change angles when the object is moved or the light moves

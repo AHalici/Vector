@@ -14,7 +14,7 @@
 using namespace std;
 
 #define numVAOs 1
-#define numVBOs 9
+#define numVBOs 20
 
 glm::vec3 vector3(float x, float y, float z);
 

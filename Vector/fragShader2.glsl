@@ -32,8 +32,8 @@ uniform bool isRow;
 uniform bool isAxes;
 
 float shadowfactor = 0.0;
-float kc = 0.0001;
-float kl = 0.02;
+float kc = 0.01;
+float kl = 0.01;
 float kq = 0.032;
 
 float lookup(float x, float y)
@@ -68,14 +68,14 @@ void main(void)
 	shadowfactor += lookup( 0.5*swidth + o.x, -0.5*swidth - o.y);
 	shadowfactor = shadowfactor / 4.0;
 
-	/*
+	
 	float width = 2.5;
 	float endp = width * 3.0 + width/2.0;
 	for (float m=-endp ; m<=endp ; m=m+width)
 	{	for (float n=-endp ; n<=endp ; n=n+width)
 		{	shadowfactor += lookup(m,n);
 	}	}
-	shadowfactor = shadowfactor / 64.0;*/
+	shadowfactor = shadowfactor / 64.0;
 	
 
 	vec4 shadowColor = globalAmbient * material.ambient
@@ -85,7 +85,7 @@ void main(void)
 				+ light.specular * material.specular
 				* pow(max(dot(H,N),0.0),material.shininess*3.0);
 
-	lightedColor *= attenuation;
+	lightedColor = 4 * (lightedColor * attenuation); // Increased the value to increase the overall light in lighted areas
 
 	fragColor = vec4((shadowColor.xyz + shadowfactor*(lightedColor.xyz)),1.0);
 

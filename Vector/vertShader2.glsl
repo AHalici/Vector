@@ -11,6 +11,7 @@ struct PositionalLight
 	vec3 position;
     vec3 direction;
 };
+
 struct Material
 {	vec4 ambient, diffuse, specular;   
 	float shininess;
@@ -54,22 +55,23 @@ void main(void)
 	// calculate the half vector (L+V)
 	varyingHalfVec = (varyingLightDir-varyingVertPos).xyz;
 
-    shadow_coord = shadowMVP * vec4(position, 1.0);
-
     if (isLine)
     {
         offsetPosition.x -= float(col) * offsetAmount;
+        shadow_coord = shadowMVP * vec4(offsetPosition, 1.0);
 
         gl_Position = p_matrix * v_matrix * m_matrix * vec4(offsetPosition, 1.0);
     }
     else if (isRow)
     {
         offsetPosition.z += float(row) * offsetAmount;
+        shadow_coord = shadowMVP * vec4(offsetPosition, 1.0);
 
         gl_Position = p_matrix * v_matrix * m_matrix * vec4(offsetPosition, 1.0);
     }
     else
     {
+        shadow_coord = shadowMVP * vec4(offsetPosition, 1.0);
         gl_Position = p_matrix * v_matrix * m_matrix * vec4(offsetPosition, 1.0);
     }
 }

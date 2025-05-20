@@ -128,14 +128,42 @@ void onEscKeyPressed();
 
 
 // Mouse position callback function
-void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
-	glfwGetFramebufferSize(window, &width, &height);
-	std::cout << "Mouse Position: (" << xpos << ", " << ypos << ")" << std::endl;
-	//mouseX = xpos;
-	//mouseY = ypos;
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) 
+{
+	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+	{
+		glfwGetFramebufferSize(window, &width, &height);
+		double xpos, ypos;
+		glfwGetCursorPos(window, &xpos, &ypos);
 
-	mouseX = (2.0f * xpos) / width - 1.0f;
-	mouseY = 1.0f - (2.0f * ypos) / height;
+		std::cout << "Mouse Position: (" << xpos << ", " << ypos << ")" << std::endl;
+		//mouseX = xpos;
+		//mouseY = ypos;
+
+		mouseX = (2.0f * xpos) / width - 1.0f;
+		mouseY = 1.0f - (2.0f * ypos) / height;
+
+		std::cout << "Mouse Position: (" << mouseX << ", " << mouseY << ")" << std::endl;
+
+		// Convert to world coordinates
+		glm::vec4 rayClip = glm::vec4(mouseX, mouseY, -1.0, 1.0);
+		glm::vec4 rayEye = glm::inverse(pMat) * rayClip;
+		rayEye = glm::vec4(rayEye.x, rayEye.y, -1.0, 0.0);
+		glm::vec4 rayWorld = glm::inverse(vMat) * rayEye;
+		glm::vec3 rayDirection = glm::normalize(glm::vec3(rayWorld));
+
+		// Get camera position
+		glm::vec3 cameraPos = cameraController.getPosition();
+
+		// Calculate intersection with plane (assume y=0)
+		float t = -cameraPos.y / rayDirection.y;  // Plane is at y=0
+		glm::vec3 intersection = cameraPos + t * rayDirection;
+
+		glm::vec3 lightPos = intersection * vector3(1.0f, 2.0f, 0.0f);
+
+		cout << "This is the mouse position in the world: x: " << lightPos.x << " y: " << lightPos.z << " z: " << lightPos.y << endl;
+	}
+	
 }
 
 int main(void)
@@ -153,6 +181,8 @@ int main(void)
 
 	GLFWwindow* window = glfwCreateWindow(1600, 1200, "Vector - Puzzle Game", NULL, NULL);
 	glfwMakeContextCurrent(window);
+
+	glfwSetMouseButtonCallback(window, mouse_button_callback);
 
 	if (glewInit() != GLEW_OK) { exit(EXIT_FAILURE); }
 	glfwSwapInterval(1);
@@ -413,9 +443,9 @@ void display(GLFWwindow* window, double currentTime)
 	else if (!goingRight)
 		xBounds -= timePassed;
 
-	cout << "This is yBounds: " << yBounds << endl;
+	/*cout << "This is yBounds: " << yBounds << endl;
 	cout << "This is xBounds: " << xBounds << endl;
-	cout << "This is timePassed: " << timePassed << endl;
+	cout << "This is timePassed: " << timePassed << endl;*/
 
 	cubeLoc = vector3(2.0f * 0.0f, yBounds * cubeSpeed, 2.0f * 2.2f);
 	cubeLoc2 = vector3(xBounds * cubeSpeed,2.0f * 4.0f, 2.0f * 2.2f);

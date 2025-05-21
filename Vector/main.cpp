@@ -184,80 +184,45 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 		glfwGetFramebufferSize(window, &width, &height);
 
 		// Convert to NDC
-		mouseX = (2.0f * xpos) / width - 1.0;
-		mouseY = 1.0f - (2.0 * ypos) / height;
+		float mouseX = (2.0f * xpos) / width - 1.0f;
+		float mouseY = 1.0f - (2.0f * ypos) / height;
 
-		// DEBUG: Print NDC coordinates
-		std::cout << "NDC coords: (" << mouseX << ", " << mouseY << ")" << std::endl;
+		// Create points at near and far planes
+		glm::vec4 nearPoint = glm::vec4(mouseX, mouseY, -1.0f, 1.0f);
+		glm::vec4 farPoint = glm::vec4(mouseX, mouseY, 1.0f, 1.0f);
 
-		// Convert to world coordinates
-		glm::vec4 rayClip = glm::vec4(mouseX, mouseY, -1.0, 1.0);
+		// Unproject both points in one step
+		glm::mat4 invPV = glm::inverse(pMat * vMat);
+		glm::vec4 nearWorld4 = invPV * nearPoint;
+		glm::vec4 farWorld4 = invPV * farPoint;
 
-		// DEBUG: Print matrices
-		std::cout << "Projection Matrix:" << std::endl;
-		for (int i = 0; i < 4; i++) {
-			std::cout << pMat[i][0] << ", " << pMat[i][1] << ", "
-				<< pMat[i][2] << ", " << pMat[i][3] << std::endl;
-		}
+		// Perform perspective divide
+		nearWorld4 /= nearWorld4.w;
+		farWorld4 /= farWorld4.w;
 
-		glm::vec4 rayEye = glm::inverse(pMat) * rayClip;
+		// Convert to vec3
+		glm::vec3 nearWorld(nearWorld4);
+		glm::vec3 farWorld(farWorld4);
 
-		// DEBUG: Print before perspective divide
-		std::cout << "Ray Eye before divide: ("
-			<< rayEye.x << ", " << rayEye.y << ", "
-			<< rayEye.z << ", " << rayEye.w << ")" << std::endl;
-
-		rayEye /= rayEye.w;
-		rayEye.w = 0.0;
-
-		// DEBUG: Print after perspective divide
-		std::cout << "Ray Eye after divide: ("
-			<< rayEye.x << ", " << rayEye.y << ", "
-			<< rayEye.z << ", " << rayEye.w << ")" << std::endl;
-
-		glm::vec4 rayWorld = glm::inverse(vMat) * rayEye;
-		glm::vec3 rayDirection = glm::normalize(glm::vec3(rayWorld));
-
-		// DEBUG: Print ray direction
-		std::cout << "Ray Direction: ("
-			<< rayDirection.x << ", " << rayDirection.y << ", "
-			<< rayDirection.z << ")" << std::endl;
+		// Create ray
+		glm::vec3 rayDir = glm::normalize(farWorld - nearWorld);
 
 		// Get camera position
 		glm::vec3 cameraPos = cameraController.getPosition();
 
-		// DEBUG: Print camera position
-		std::cout << "Camera Position: ("
-			<< cameraPos.x << ", " << cameraPos.y << ", "
-			<< cameraPos.z << ")" << std::endl;
+		// Calculate plane intersection
+		float t = -cameraPos.y / rayDir.y;
 
-		// Add guard for near-zero denominator
-		if (std::abs(rayDirection.y) < 0.0001f) {
-			std::cout << "Ray nearly parallel to ground plane!" << std::endl;
-			return;
-		}
+		// Compute intersection
+		glm::vec3 intersection = cameraPos + t * rayDir;
 
-		// Calculate intersection with plane (assume y=0)
-		float t = -cameraPos.y / rayDirection.y;
-
-		// DEBUG: Print t value
-		std::cout << "t value: " << t << std::endl;
-
-		// Only process positive t values (in front of camera)
-		if (t <= 0) {
-			std::cout << "Intersection behind camera!" << std::endl;
-			return;
-		}
-
-		glm::vec3 intersection = cameraPos + t * rayDirection;
-
-		// DEBUG: Print raw intersection
-		std::cout << "Raw intersection: ("
-			<< intersection.x << ", " << intersection.y << ", "
-			<< intersection.z << ")" << std::endl;
-
+		// Set spawn location
 		cubeSpawnLocation = intersection;
 		cubeSpawnLocation.y += 5.0f;
+
+		std::cout << "NDC: (" << mouseX << ", " << mouseY << ")  World: ("
+			<< intersection.x << ", " << intersection.y << ", "
+			<< intersection.z << ")" << std::endl;
 
 		spawnCube();
 	}
@@ -357,7 +322,7 @@ void init(GLFWwindow* window)
 	/*cameraController.setPosition(0.0f, 20.0f, 10.0f);
 	cameraController.setOrientation(glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));*/
 	//cameraLoc = glm::vec3(0.0f, 20.0f, 10.0f);
-	planeLocX = 0.0f; planeLocY = -5.0f; planeLocZ = 0.0f;
+	planeLocX = 0.0f; planeLocY = 0.0f; planeLocZ = 0.0f;
 
 
 	// TODO: changed to renderingProgram2
@@ -390,12 +355,12 @@ void setupVertices()
 {
 	float planeVertexPositions[18] =
 	{
-	   -10.0f, 0.0f, 0.0f,
+	   -10.0f, 0.0f, -10.0f,
 		10.0f, 0.0f, 10.0f,
 	   -10.0f, 0.0f, 10.0f,
 
-	   -10.0f, 0.0f, 0.0f,
-		10.0f, 0.0f, 0.0f,
+	   -10.0f, 0.0f, -10.0f,
+		10.0f, 0.0f, -10.0f,
 		10.0f, 0.0f, 10.0f
 	};
 
@@ -407,20 +372,20 @@ void setupVertices()
 
 	float xlineVertexPositions[6] =
 	{
-		0.0f, 0.0f, 0.0f,
-		5.0f, 0.0f, 0.0f
+		-10.0f, 0.0f, 0.0f,
+		10.0f, 0.0f, 0.0f
 	};
 
 	float ylineVertexPositions[6] =
 	{
-		0.0f, 0.0f, 0.0f,
-		0.0f, 5.0f, 0.0f
+		0.0f, -10.0f, 0.0f,
+		0.0f, 10.0f, 0.0f
 	};
 
 	float zlineVertexPositions[6] =
 	{
-		0.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 5.0f
+		0.0f, 0.0f, -10.0f,
+		0.0f, 0.0f, 10.0f
 	};
 
 	float cubeVertexPositions[108] = {
@@ -553,8 +518,8 @@ void display(GLFWwindow* window, double currentTime)
 	cout << "This is xBounds: " << xBounds << endl;
 	cout << "This is timePassed: " << timePassed << endl;*/
 
-	cubeLoc = vector3(2.0f * 0.0f, yBounds * cubeSpeed, 2.0f * 2.2f);
-	cubeLoc2 = vector3(xBounds * cubeSpeed,2.0f * 4.0f, 2.0f * 2.2f);
+	cubeLoc = vector3(10.0f, yBounds * cubeSpeed, 5.0f);
+	cubeLoc2 = vector3(xBounds * cubeSpeed, -10.0f, 5.0f);
 
 	// Sets the origin of the lightVMatrix to the higher of the two (9.0f or cubeLoc.z)
 	float highestPoint = std::max(10.0f, cubeLoc.y);
@@ -833,8 +798,8 @@ void passOne(double time)
 
 	//// ----------------------------------------- Plane -----------------------------------------
 
-	pmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 2.0f, 1.0f));
-	pmMat = glm::translate(pmMat, vector3(planeLocX, planeLocY, planeLocZ));
+	//pmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 2.0f, 1.0f));
+	pmMat = glm::translate(glm::mat4(1.0f), vector3(planeLocX, planeLocY, planeLocZ));
 
 	shadowMVP1 = lightPMatrix * lightVMatrix * pmMat;
 	//sLoc = glGetUniformLocation(renderingProgram1, "shadowMVP");
@@ -860,8 +825,8 @@ void passOne(double time)
 	isLine = true;
 	glUniform1i(isLineLoc, isLine);
 
-	vlmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 4.0f, 1.0f));
-	vlmMat = glm::translate(vlmMat, vector3(10.0f, -2.5f, 0.0f));
+	//vlmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 4.0f, 1.0f));
+	vlmMat = glm::translate(glm::mat4(1.0f), vector3(-10.0f, 0.0f, 0.0f));
 	//mvMat = vMat * vlmMat;
 
 	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
@@ -892,8 +857,8 @@ void passOne(double time)
 	isRow = true;
 	glUniform1i(isRowLoc, isRow);
 
-	hlmMat = glm::scale(glm::mat4(1.0f), vector3(4.0f, 1.0f, 1.0f));
-	hlmMat = glm::translate(hlmMat, vector3(-2.5f, -10.0f, 0.0f));
+	//hlmMat = glm::scale(glm::mat4(1.0f), vector3(4.0f, 1.0f, 1.0f));
+	hlmMat = glm::translate(glm::mat4(1.0f), vector3(0.0f, -10.0f, 0.0f));
 
 	/*hlmMat = glm::scale(glm::mat4(1.0f), vector3(4.0f, 2.0f, 1.0f));
 	hlmMat = glm::translate(hlmMat, vector3(-2.5f, -5.0f, 0.0f));*/
@@ -1094,8 +1059,8 @@ void passTwo(double time)
 	updateCamera();
 	vMat = cameraRMat * cameraTMat;
 
-	pmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 2.0f, 1.0f));
-	pmMat = glm::translate(pmMat, vector3(planeLocX, planeLocY, planeLocZ));
+	//pmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 2.0f, 1.0f));
+	pmMat = glm::translate(glm::mat4(1.0f), vector3(planeLocX, planeLocY, planeLocZ));
 
 	currentLightPos = lightLoc;
 	installLights(renderingProgram2);
@@ -1137,8 +1102,8 @@ void passTwo(double time)
 	thisSpe[0] = gMatSpe[0]; thisSpe[1] = gMatSpe[1]; thisSpe[2] = gMatSpe[2];
 	thisShi = gMatShi;
 
-	vlmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 4.0f, 1.0f));
-	vlmMat = glm::translate(vlmMat, vector3(10.0f, -2.5f, 0.0f));
+	//vlmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 4.0f, 1.0f));
+	vlmMat = glm::translate(glm::mat4(1.0f), vector3(-10.0f, 0.0f, 0.0f));
 	//mvMat = vMat * vlmMat;
 
 	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
@@ -1184,8 +1149,8 @@ void passTwo(double time)
 	isRow = true;
 	glUniform1i(isRowLoc, isRow);
 
-	hlmMat = glm::scale(glm::mat4(1.0f), vector3(4.0f, 1.0f, 1.0f));
-	hlmMat = glm::translate(hlmMat, vector3(-2.5f, -10.0f, 0.0f)); // The position is different than the vertical lines because of the 4.0f scaling on the x axis
+	//hlmMat = glm::scale(glm::mat4(1.0f), vector3(4.0f, 1.0f, 1.0f));
+	hlmMat = glm::translate(glm::mat4(1.0f), vector3(0.0f, -10.0f, 0.0f)); // The position is different than the vertical lines because of the 4.0f scaling on the x axis
 	//mvMat = vMat * hlmMat;
 
 	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));

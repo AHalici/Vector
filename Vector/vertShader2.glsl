@@ -57,7 +57,7 @@ void main(void)
 
     if (isLine)
     {
-        offsetPosition.x -= float(col) * offsetAmount;
+        offsetPosition.x += float(col) * offsetAmount;
         shadow_coord = shadowMVP * vec4(offsetPosition, 1.0);
 
         gl_Position = p_matrix * v_matrix * m_matrix * vec4(offsetPosition, 1.0);

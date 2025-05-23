@@ -129,49 +129,6 @@ void onEscKeyPressed();
 
 void spawnCube();
 
-// Alternative: Simple geometric method for top - down camera
-void mouse_button_callback_simple(GLFWwindow * window, int button, int action, int mods)
-{
-	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
-	{
-		double xpos, ypos;
-		glfwGetCursorPos(window, &xpos, &ypos);
-		glfwGetFramebufferSize(window, &width, &height);
-
-		float mouseX = (2.0f * xpos) / width - 1.0f;
-		float mouseY = 1.0f - (2.0f * ypos) / height;
-
-		std::cout << "=== SIMPLE METHOD ===" << std::endl;
-		std::cout << "NDC: (" << mouseX << ", " << mouseY << ")" << std::endl;
-
-		// For a camera at (0, 20, 0) looking straight down with perspective projection
-		float fov = 1.0472f; // Your FOV in radians
-		float aspect = (float)width / (float)height;
-		float cameraHeight = 20.0f; // Camera Y position
-
-		// Calculate the width and height of the view frustum at Y=0 plane
-		float halfHeight = cameraHeight * tan(fov / 2.0f);
-		float halfWidth = halfHeight * aspect;
-
-		std::cout << "View frustum at Y=0: width=" << (halfWidth * 2) << ", height=" << (halfHeight * 2) << std::endl;
-
-		// Convert NDC to world coordinates on the Y=0 plane
-		// For top-down view: mouseX -> worldX, mouseY -> worldZ
-		float worldX = mouseX * halfWidth;
-		float worldZ = mouseY * halfHeight;  // Positive because your V vector points +Z
-
-		glm::vec3 intersection = glm::vec3(worldX, 0.0f, worldZ);
-
-		std::cout << "Simple intersection: (" << intersection.x << ", " << intersection.y << ", " << intersection.z << ")" << std::endl;
-
-		cubeSpawnLocation = intersection;
-		cubeSpawnLocation.y += 0.5f;
-
-		std::cout << "Simple spawn location: (" << cubeSpawnLocation.x << ", " << cubeSpawnLocation.y << ", " << cubeSpawnLocation.z << ")" << std::endl;
-		spawnCube();
-	}
-}
-
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
 	//if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
@@ -212,22 +169,45 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 		float mouseX = (2.0f * xpos) / width - 1.0f;
 		float mouseY = 1.0f - (2.0f * ypos) / height;
 
-		// Create points at near and far planes
+		// Create points at near and far planes: CLIP SPACE???
 		glm::vec4 nearPoint = glm::vec4(mouseX, mouseY, -1.0f, 1.0f);
 		glm::vec4 farPoint = glm::vec4(mouseX, mouseY, 1.0f, 1.0f);
 
-		// Unproject both points in one step
-		glm::mat4 invPV = glm::inverse(pMat * vMat);
-		glm::vec4 nearWorld4 = invPV * nearPoint;
-		glm::vec4 farWorld4 = invPV * farPoint;
+
+		//glm::mat4 invPV = glm::inverse(pMat * vMat); 
+			// Can be done in one step like this. 
+				// ASK WHY IT'S NOT vMat * pMat if we read from right to left since pMat should be resolved first
+		
+		// Inverse Perspective Matrix
+		glm::vec4 nearWorld4 = glm::inverse(pMat) * nearPoint;
+		glm::vec4 farWorld4 = glm::inverse(pMat) * farPoint;
 
 		// Perform perspective divide
+			// Can be done after inverse of vMat as well
 		nearWorld4 /= nearWorld4.w;
 		farWorld4 /= farWorld4.w;
 
+		// Convert from View Space to World Space (Inverse View Matrix)
+		glm::vec4 nearWorld4W = glm::inverse(vMat) * nearWorld4;
+		glm::vec4 farWorld4W = glm::inverse(vMat) * farWorld4;
+
+		// ------------------------------------- Inverse Perspective and View Matrices at the same time --------------------
+		// -----------------------------------------------------------------------------------------------------------------
+		//// Unproject both points in one step
+		//glm::mat4 invPV = glm::inverse(pMat * vMat);
+		//glm::vec4 nearWorld4 = invPV * nearPoint;
+		//glm::vec4 farWorld4 = invPV * farPoint;
+
+		//// Perform perspective divide
+		//nearWorld4 /= nearWorld4.w;
+		//farWorld4 /= farWorld4.w;
+
+		// -----------------------------------------------------------------------------------------------------------------
+		// -----------------------------------------------------------------------------------------------------------------
+		
 		// Convert to vec3
-		glm::vec3 nearWorld(nearWorld4);
-		glm::vec3 farWorld(farWorld4);
+		glm::vec3 nearWorld(nearWorld4W);
+		glm::vec3 farWorld(farWorld4W);
 
 		// Create ray
 		glm::vec3 rayDir = glm::normalize(farWorld - nearWorld);
@@ -278,7 +258,6 @@ int main(void)
 	glfwMakeContextCurrent(window);
 
 	glfwSetMouseButtonCallback(window, mouse_button_callback);
-	//glfwSetMouseButtonCallback(window, mouse_button_callback_simple);
 
 	if (glewInit() != GLEW_OK) { exit(EXIT_FAILURE); }
 	glfwSwapInterval(1);

@@ -27,6 +27,11 @@ float globalAmbient[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 float lightAmbient[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
 float lightDiffuse[4] = { 1.2f, 1.2f, 1.2f, 1.0f };
 float lightSpecular[4] = { 0.5f, 0.5f, 0.5f, 0.0f };
+float lightDirection[3] = { 0.0f, 0.0f, -1.0f };
+
+// Spotlight
+float spotlightCutoff = 50.0f;
+float spotLightExponent = 4.0f;
 
 // gold material
 float* gMatAmb = Utils::goldAmbient();
@@ -50,18 +55,18 @@ float thisAmb[4], thisDif[4], thisSpe[4], matAmb[4], matDif[4], matSpe[4];
 float thisShi, matShi;
 
 // Display variables
-GLuint mvLoc, mLoc, vLoc, pLoc, nLoc, sLoc;
+GLuint sLoc1, sLoc2, mvLoc, mLoc, vLoc, pLoc, nLoc;
 int width, height;
 float aspect;
 glm::mat4 pmMat, vlmMat, hlmMat, amMat, cmMat, vMat, pMat, mvMat, invTrMat, cameraTMat, cameraRMat;
 glm::vec3 currentLightPos;
 float lightPos[3];
-GLuint globalAmbLoc, ambLoc, diffLoc, specLoc, posLoc, mambLoc, mdiffLoc, mspecLoc, mshiLoc;
+GLuint globalAmbLoc, ambLoc, diffLoc, specLoc, posLoc, directionLoc, cutoffLoc, exponentLoc, mambLoc, mdiffLoc, mspecLoc, mshiLoc;
 float yBounds, xBounds;
 float timePassed;
 float previousTime;
 //glm::vec3 cubeLoc = vector3(2.0f * 0.0f, yBounds * 2.0f, 2.0f * 2.2f);
-glm::vec3 lightLoc = vector3(0.0f, 0.0f, 10.0f); // If I make the light closer to the plane with the z value, the fov of the lightPMatrix isn't wide enough and the shadow has artifacts
+glm::vec3 lightLoc = vector3(0.0f, 0.0f, 1.0f); // If I make the light closer to the plane with the z value, the fov of the lightPMatrix isn't wide enough and the shadow has artifacts
 //glm::vec3 lightLoc = glm::vec3(0.0f, 30.0f, 5.0f);
 glm::vec3 cubeLoc, cubeLoc2, cubeSpawnLocation;// = vector3(2.0f * 0.0f, yBounds * 4.0f, 2.0f * 2.2f);
 
@@ -81,7 +86,7 @@ unsigned int cubeNumVertices;
 bool isLine = false;
 bool isRow = false;
 bool isAxes = false;
-GLuint isLineLoc, isRowLoc, isAxesLoc;
+GLuint isLineLoc1, isRowLoc1, isAxesLoc1, isLineLoc2, isRowLoc2, isAxesLoc2;
 
 // Cube motion
 bool goingUp = true;
@@ -128,6 +133,23 @@ void onQKeyPressed();
 void onEscKeyPressed();
 
 void spawnCube();
+
+void reloadShaders() {
+	std::cout << "Reloading shaders..." << std::endl;
+
+	// Delete old programs
+	if (renderingProgram1 != 0) glDeleteProgram(renderingProgram1);
+	if (renderingProgram2 != 0) glDeleteProgram(renderingProgram2);
+
+	// Recreate programs
+	renderingProgram1 = Utils::createShaderProgram("vertShader1.glsl", "fragShader1.glsl");
+	renderingProgram2 = Utils::createShaderProgram("vertShader2.glsl", "fragShader2.glsl");
+
+	std::cout << "Shaders reloaded. Program1: " << renderingProgram1 << ", Program2: " << renderingProgram2 << std::endl;
+
+	// Check for compilation errors
+	Utils::checkOpenGLError();
+}
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
@@ -306,6 +328,18 @@ int main(void)
 			// Call the function continuously while Esc is held down
 			onEscKeyPressed();
 		}
+		// ADD THIS: Press R to reload shaders
+		if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
+			static bool rKeyPressed = false;
+			if (!rKeyPressed) {
+				reloadShaders();
+				rKeyPressed = true;
+			}
+		}
+		else {
+			static bool rKeyPressed = false;
+			rKeyPressed = false;
+		}
 	}
 
 	glfwDestroyWindow(window);
@@ -318,6 +352,16 @@ void init(GLFWwindow* window)
 	renderingProgram1 = Utils::createShaderProgram("vertShader1.glsl", "fragShader1.glsl");
 	renderingProgram2 = Utils::createShaderProgram("vertShader2.glsl", "fragShader2.glsl");
 
+	// DEBUG: Check if shaders compiled successfully
+	std::cout << "renderingProgram1 ID: " << renderingProgram1 << std::endl;
+	std::cout << "renderingProgram2 ID: " << renderingProgram2 << std::endl;
+
+	// Check for OpenGL errors after shader creation
+	if (Utils::checkOpenGLError()) {
+		std::cout << "OpenGL error after shader creation!" << std::endl;
+	}
+
+
 	// Set up frustum and perspective matrix
 	glfwGetFramebufferSize(window, &width, &height);
 	aspect = (float)width / (float)height;
@@ -328,17 +372,25 @@ void init(GLFWwindow* window)
 	//cameraLoc = glm::vec3(0.0f, 20.0f, 10.0f);
 	planeLocX = 0.0f; planeLocY = 0.0f; planeLocZ = 0.0f;
 
+	
+	isLineLoc1 = glGetUniformLocation(renderingProgram1, "isLine");
+	isRowLoc1 = glGetUniformLocation(renderingProgram1, "isRow");
+	isAxesLoc1 = glGetUniformLocation(renderingProgram1, "isAxes");
+	sLoc1 = glGetUniformLocation(renderingProgram1, "shadowMVP");
+
 
 	// TODO: changed to renderingProgram2
-	/*mLoc = glGetUniformLocation(renderingProgram2, "m_matrix");
+	mLoc = glGetUniformLocation(renderingProgram2, "m_matrix");
 	vLoc = glGetUniformLocation(renderingProgram2, "v_matrix");
-	mvLoc = glGetUniformLocation(renderingProgram2, "mv_matrix");
+	//mvLoc = glGetUniformLocation(renderingProgram2, "mv_matrix");
 	pLoc = glGetUniformLocation(renderingProgram2, "p_matrix");
-	isLineLoc = glGetUniformLocation(renderingProgram2, "isLine");
-	isRowLoc = glGetUniformLocation(renderingProgram2, "isRow");
-	isAxesLoc = glGetUniformLocation(renderingProgram2, "isAxes");
+	isLineLoc2 = glGetUniformLocation(renderingProgram2, "isLine");
+	isRowLoc2 = glGetUniformLocation(renderingProgram2, "isRow");
+	isAxesLoc2 = glGetUniformLocation(renderingProgram2, "isAxes");
 	nLoc = glGetUniformLocation(renderingProgram2, "norm_matrix");
-	sLoc = glGetUniformLocation(renderingProgram2, "shadowMVP");*/
+	sLoc2 = glGetUniformLocation(renderingProgram2, "shadowMVP");
+
+
 
 	setupVertices();
 	setupCamera();
@@ -742,8 +794,8 @@ void passOne(double time)
 
 
 	shadowMVP1 = lightPMatrix * lightVMatrix * cmMat;
-	sLoc = glGetUniformLocation(renderingProgram1, "shadowMVP");
-	glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
+	sLoc1 = glGetUniformLocation(renderingProgram1, "shadowMVP");
+	glUniformMatrix4fv(sLoc1, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
 
 	// Bind vertex attribute to vbo[7] values and enable vertex attribute
 	glBindBuffer(GL_ARRAY_BUFFER, vbo[7]);
@@ -763,8 +815,8 @@ void passOne(double time)
 	//cmMat = glm::scale(cmMat, vector3(0.5f, 0.5f, 0.5f));
 
 	shadowMVP1 = lightPMatrix * lightVMatrix * cmMat;
-	//sLoc = glGetUniformLocation(renderingProgram1, "shadowMVP");
-	glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
+	//sLoc1 = glGetUniformLocation(renderingProgram1, "shadowMVP");
+	glUniformMatrix4fv(sLoc1, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
 
 	// Bind vertex attribute to vbo[7] values and enable vertex attribute
 	glBindBuffer(GL_ARRAY_BUFFER, vbo[7]);
@@ -786,8 +838,8 @@ void passOne(double time)
 		//cmMat = glm::scale(cmMat, vector3(0.5f, 0.5f, 0.5f));
 
 		shadowMVP1 = lightPMatrix * lightVMatrix * cmMat;
-		//sLoc = glGetUniformLocation(renderingProgram1, "shadowMVP");
-		glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
+		//sLoc1 = glGetUniformLocation(renderingProgram1, "shadowMVP");
+		glUniformMatrix4fv(sLoc1, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
 
 		// Bind vertex attribute to vbo[7] values and enable vertex attribute
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[7]);
@@ -809,8 +861,8 @@ void passOne(double time)
 	pmMat = glm::translate(glm::mat4(1.0f), vector3(planeLocX, planeLocY, planeLocZ));
 
 	shadowMVP1 = lightPMatrix * lightVMatrix * pmMat;
-	//sLoc = glGetUniformLocation(renderingProgram1, "shadowMVP");
-	glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
+	//sLoc1 = glGetUniformLocation(renderingProgram1, "shadowMVP");
+	glUniformMatrix4fv(sLoc1, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
 
 	// Bind vertex attribute to vbo[0] values and enable vertex attribute
 	glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
@@ -830,7 +882,7 @@ void passOne(double time)
 	// ----------------------------------------- Vertical Lines (Blue) -----------------------------------------
 
 	isLine = true;
-	glUniform1i(isLineLoc, isLine);
+	glUniform1i(isLineLoc1, isLine);
 
 	//vlmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 4.0f, 1.0f));
 	vlmMat = glm::translate(glm::mat4(1.0f), vector3(-10.0f, 0.0f, 0.0f));
@@ -839,8 +891,8 @@ void passOne(double time)
 	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
 
 	shadowMVP1 = lightPMatrix * lightVMatrix * vlmMat;
-	//sLoc = glGetUniformLocation(renderingProgram1, "shadowMVP");
-	glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
+	//sLoc1 = glGetUniformLocation(renderingProgram1, "shadowMVP");
+	glUniformMatrix4fv(sLoc1, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
 
 	// Bind vertex attribute to vbo[0] values and enable vertex attribute
 	glBindBuffer(GL_ARRAY_BUFFER, vbo[4]);
@@ -855,14 +907,14 @@ void passOne(double time)
 
 	glDrawArraysInstanced(GL_LINES, 0, lineNumVertices, 21);
 	isLine = false;
-	glUniform1i(isLineLoc, isLine);
+	glUniform1i(isLineLoc1, isLine);
 
 
 	// -----------------------------------------------------------------------------------------
 	// ----------------------------------------- Horizontal Lines (Green) -----------------------------------------
 
 	isRow = true;
-	glUniform1i(isRowLoc, isRow);
+	glUniform1i(isRowLoc1, isRow);
 
 	//hlmMat = glm::scale(glm::mat4(1.0f), vector3(4.0f, 1.0f, 1.0f));
 	hlmMat = glm::translate(glm::mat4(1.0f), vector3(0.0f, -10.0f, 0.0f));
@@ -876,8 +928,8 @@ void passOne(double time)
 	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
 
 	shadowMVP1 = lightPMatrix * lightVMatrix * hlmMat;
-	//sLoc = glGetUniformLocation(renderingProgram1, "shadowMVP");
-	glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
+	//sLoc1 = glGetUniformLocation(renderingProgram1, "shadowMVP");
+	glUniformMatrix4fv(sLoc1, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
 
 	// Bind vertex attribute to vbo[0] values and enable vertex attribute
 	glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
@@ -892,7 +944,7 @@ void passOne(double time)
 
 	glDrawArraysInstanced(GL_LINES, 0, lineNumVertices, 21);
 	isRow = false;
-	glUniform1i(isRowLoc, isRow);
+	glUniform1i(isRowLoc1, isRow);
 
 }
 
@@ -900,17 +952,22 @@ void passTwo(double time)
 {
 	glUseProgram(renderingProgram2);
 
+	// DEBUG: Verify which program is currently active
+	GLint currentProgram;
+	glGetIntegerv(GL_CURRENT_PROGRAM, &currentProgram);
+	std::cout << "Current active program: " << currentProgram << " (should be " << renderingProgram2 << ")" << std::endl;
+
 	//yBounds = (float)time;
 
-	mLoc = glGetUniformLocation(renderingProgram2, "m_matrix");
+	/*mLoc = glGetUniformLocation(renderingProgram2, "m_matrix");
 	vLoc = glGetUniformLocation(renderingProgram2, "v_matrix");
 	mvLoc = glGetUniformLocation(renderingProgram2, "mv_matrix");
 	pLoc = glGetUniformLocation(renderingProgram2, "p_matrix");
 	isLineLoc = glGetUniformLocation(renderingProgram2, "isLine");
-	isRowLoc = glGetUniformLocation(renderingProgram2, "isRow");
+	isRowLoc1 = glGetUniformLocation(renderingProgram2, "isRow");
 	isAxesLoc = glGetUniformLocation(renderingProgram2, "isAxes");
 	nLoc = glGetUniformLocation(renderingProgram2, "norm_matrix");
-	sLoc = glGetUniformLocation(renderingProgram2, "shadowMVP");
+	sLoc2 = glGetUniformLocation(renderingProgram2, "shadowMVP");*/
 
 	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	
@@ -946,7 +1003,7 @@ void passTwo(double time)
 	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
 	glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
 	glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
-	glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+	glUniformMatrix4fv(sLoc2, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
 
 	// Cube VERTICES
 	glBindBuffer(GL_ARRAY_BUFFER, vbo[7]);
@@ -993,7 +1050,7 @@ void passTwo(double time)
 	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
 	glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
 	glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
-	glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+	glUniformMatrix4fv(sLoc2, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
 
 	// Cube VERTICES
 	glBindBuffer(GL_ARRAY_BUFFER, vbo[7]);
@@ -1039,7 +1096,7 @@ void passTwo(double time)
 		//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
 		glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
 		glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
-		glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+		glUniformMatrix4fv(sLoc2, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
 
 		// Cube VERTICES
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[7]);
@@ -1083,7 +1140,7 @@ void passTwo(double time)
 	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
 	glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
 	glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
-	glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+	glUniformMatrix4fv(sLoc2, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
 
 	// Plane VERTICES
 	glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
@@ -1128,10 +1185,10 @@ void passTwo(double time)
 	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
 	glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
 	glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
-	glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+	glUniformMatrix4fv(sLoc2, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
 	
 	isLine = true;
-	glUniform1i(isLineLoc, isLine);
+	glUniform1i(isLineLoc2, isLine);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vbo[4]);
 	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
@@ -1146,7 +1203,7 @@ void passTwo(double time)
 
 	glDrawArraysInstanced(GL_LINES, 0, lineNumVertices, 21);
 	isLine = false;
-	glUniform1i(isLineLoc, isLine);
+	glUniform1i(isLineLoc2, isLine);
 
 	// -----------------------------------------------------------------------------------------
 	// ----------------------------------------- Horizontal Lines (Green) -----------------------------------------
@@ -1157,7 +1214,7 @@ void passTwo(double time)
 	thisShi = gMatShi;
 	
 	isRow = true;
-	glUniform1i(isRowLoc, isRow);
+	glUniform1i(isRowLoc2, isRow);
 
 	//hlmMat = glm::scale(glm::mat4(1.0f), vector3(4.0f, 1.0f, 1.0f));
 	hlmMat = glm::translate(glm::mat4(1.0f), vector3(0.0f, -10.0f, 0.0f)); // The position is different than the vertical lines because of the 4.0f scaling on the x axis
@@ -1175,7 +1232,7 @@ void passTwo(double time)
 	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
 	glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
 	glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
-	glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+	glUniformMatrix4fv(sLoc2, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
 
 	glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
 	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
@@ -1187,13 +1244,13 @@ void passTwo(double time)
 	glDrawArraysInstanced(GL_LINES, 0, lineNumVertices, 21);
 
 	isRow = false;
-	glUniform1i(isRowLoc, isRow);
+	glUniform1i(isRowLoc2, isRow);
 
 
 	//// ----------------------------------------- Axes -----------------------------------------
 	//// ----------------------------------------- X-axis (Red)
 	//isAxes = true;
-	//glUniform1i(isAxesLoc, isAxes);
+	//glUniform1i(isAxesLoc2, isAxes);
 
 	//amMat = glm::rotate(glm::mat4(1.0f), toRadians(165.0f), vector3(0.0f, 1.0f, 0.0f));
 	//amMat = glm::translate(amMat, vector3(0.0f, -5.0f, 0.0f));
@@ -1210,7 +1267,7 @@ void passTwo(double time)
 	//glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
 	//glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
 	//glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
-	//glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+	//glUniformMatrix4fv(sLoc2, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
 
 	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
 
@@ -1220,7 +1277,7 @@ void passTwo(double time)
 
 	//glDrawArrays(GL_LINES, 0, lineNumVertices);
 	//isAxes = false;
-	//glUniform1i(isAxesLoc, isAxes);
+	//glUniform1i(isAxesLoc2, isAxes);
 
 	//// ----------------------------------------- Y-axis (World) - (Z-axis converted) (Green)
 	//isRow = true;
@@ -1242,7 +1299,7 @@ void passTwo(double time)
 	//glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
 	//glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
 	//glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
-	//glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+	//glUniformMatrix4fv(sLoc2, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
 
 	//glBindBuffer(GL_ARRAY_BUFFER, vbo[3]);
 	//glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
@@ -1276,7 +1333,7 @@ void passTwo(double time)
 	//glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
 	//glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
 	//glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
-	//glUniformMatrix4fv(sLoc, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+	//glUniformMatrix4fv(sLoc2, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
 
 	//glBindBuffer(GL_ARRAY_BUFFER, vbo[4]);
 	//glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
@@ -1432,6 +1489,9 @@ void installLights(int renderingProgram)
 	lightPos[1] = currentLightPos.y;
 	lightPos[2] = currentLightPos.z;
 
+	// DEBUG: Print light position
+	std::cout << "Light position: (" << lightPos[0] << ", " << lightPos[1] << ", " << lightPos[2] << ")" << std::endl;
+
 	matAmb[0] = thisAmb[0]; matAmb[1] = thisAmb[1]; matAmb[2] = thisAmb[2]; matAmb[3] = thisAmb[3];
 	matDif[0] = thisDif[0]; matDif[1] = thisDif[1]; matDif[2] = thisDif[2]; matDif[3] = thisDif[3];
 	matSpe[0] = thisSpe[0]; matSpe[1] = thisSpe[1]; matSpe[2] = thisSpe[2]; matSpe[3] = thisSpe[3];
@@ -1443,10 +1503,21 @@ void installLights(int renderingProgram)
 	diffLoc = glGetUniformLocation(renderingProgram, "light.diffuse");
 	specLoc = glGetUniformLocation(renderingProgram, "light.specular");
 	posLoc = glGetUniformLocation(renderingProgram, "light.position");
+	directionLoc = glGetUniformLocation(renderingProgram, "light.direction");
+	cutoffLoc = glGetUniformLocation(renderingProgram, "light.cutoffAngle");
+	exponentLoc = glGetUniformLocation(renderingProgram, "light.exponent");
+
 	mambLoc = glGetUniformLocation(renderingProgram, "material.ambient");
 	mdiffLoc = glGetUniformLocation(renderingProgram, "material.diffuse");
 	mspecLoc = glGetUniformLocation(renderingProgram, "material.specular");
 	mshiLoc = glGetUniformLocation(renderingProgram, "material.shininess");
+
+
+	// DEBUG: Check if uniform locations are valid
+	/*std::cout << "Uniform locations - cutoff: " << cutoffLoc << ", exponent: " << exponentLoc
+		<< ", direction: " << directionLoc << ", position: " << posLoc << std::endl;
+	std::cout << "Spotlight values - cutoff: " << spotlightCutoff << ", exponent: " << spotLightExponent << std::endl;*/
+
 
 	//  set the uniform light and material values in the shader
 	glProgramUniform4fv(renderingProgram, globalAmbLoc, 1, globalAmbient);
@@ -1454,10 +1525,19 @@ void installLights(int renderingProgram)
 	glProgramUniform4fv(renderingProgram, diffLoc, 1, lightDiffuse);
 	glProgramUniform4fv(renderingProgram, specLoc, 1, lightSpecular);
 	glProgramUniform3fv(renderingProgram, posLoc, 1, lightPos);
+	glProgramUniform3fv(renderingProgram, directionLoc, 1, lightDirection);
+	glProgramUniform1f(renderingProgram, cutoffLoc, spotlightCutoff);
+	glProgramUniform1f(renderingProgram, exponentLoc, spotLightExponent);
+
 	glProgramUniform4fv(renderingProgram, mambLoc, 1, matAmb);
 	glProgramUniform4fv(renderingProgram, mdiffLoc, 1, matDif);
 	glProgramUniform4fv(renderingProgram, mspecLoc, 1, matSpe);
 	glProgramUniform1f(renderingProgram, mshiLoc, matShi);
+
+	// Check for OpenGL errors after setting uniforms
+	if (Utils::checkOpenGLError()) {
+		std::cout << "OpenGL error in installLights!" << std::endl;
+	}
 }
 
 void setupShadowBuffers(GLFWwindow* window)

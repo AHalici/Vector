@@ -8,6 +8,8 @@ struct PositionalLight
 {	vec4 ambient, diffuse, specular;
 	vec3 position;
 	vec3 direction;
+	float cutoffAngle;
+	float exponent;
 };
 
 struct Material
@@ -47,10 +49,25 @@ void main(void)
 {
 	vec3 L = normalize(varyingLightDir);
 	vec3 N = normalize(varyingNormal);
-
 	// Accesses the 4th row of the view matrix which is the translation column which has our negated camera position in world space
 	vec3 V = normalize(-v_matrix[3].xyz - varyingVertPos);
 	vec3 H = normalize(varyingHalfVec);
+
+	vec3 D = normalize(-light.direction);
+
+	// Cutoff Angle
+	float theta = radians(light.cutoffAngle);
+	float phi = dot(D, L); // This gives the cos between D and L, not the angle itself, so we don't need to get the cos in intensity factor
+
+	float intensityFactor = 0.0;
+
+	if (phi >= theta)
+		intensityFactor = pow(cos(phi), light.exponent);
+	else
+		intensityFactor = 0.0;
+
+	//float cosTheta = max(dot(L, N), 0.0);
+	//float cosPhi = pow(max(dot(H, N), 0.0), material.shininess * 3.0);
 
 	// Light attenuation
 	vec3 distanceVector = varyingVertPos - light.position;
@@ -87,7 +104,7 @@ void main(void)
 
 	lightedColor = 4 * (lightedColor * attenuation); // Increased the value to increase the overall light in lighted areas
 
-	fragColor = vec4((shadowColor.xyz + shadowfactor*(lightedColor.xyz)),1.0);
+	fragColor = vec4((shadowColor.xyz + intensityFactor * shadowfactor * lightedColor.xyz),1.0);
 
 	/*if (isLine)
 	{

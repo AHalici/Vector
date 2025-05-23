@@ -10,6 +10,8 @@ struct PositionalLight
 {	vec4 ambient, diffuse, specular;
 	vec3 position;
     vec3 direction;
+    float cutoffAngle;
+	float exponent;
 };
 
 struct Material

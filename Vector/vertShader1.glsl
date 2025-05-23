@@ -2,9 +2,6 @@
 
 layout (location=0) in vec3 position;
 
-uniform mat4 mv_matrix;
-uniform mat4 p_matrix;
-
 uniform bool isLine;
 uniform bool isRow;
 uniform bool isAxes;

@@ -129,52 +129,77 @@ void onEscKeyPressed();
 
 void spawnCube();
 
+// Alternative: Simple geometric method for top - down camera
+void mouse_button_callback_simple(GLFWwindow * window, int button, int action, int mods)
+{
+	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+	{
+		double xpos, ypos;
+		glfwGetCursorPos(window, &xpos, &ypos);
+		glfwGetFramebufferSize(window, &width, &height);
 
+		float mouseX = (2.0f * xpos) / width - 1.0f;
+		float mouseY = 1.0f - (2.0f * ypos) / height;
 
-// Mouse position callback function
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) 
+		std::cout << "=== SIMPLE METHOD ===" << std::endl;
+		std::cout << "NDC: (" << mouseX << ", " << mouseY << ")" << std::endl;
+
+		// For a camera at (0, 20, 0) looking straight down with perspective projection
+		float fov = 1.0472f; // Your FOV in radians
+		float aspect = (float)width / (float)height;
+		float cameraHeight = 20.0f; // Camera Y position
+
+		// Calculate the width and height of the view frustum at Y=0 plane
+		float halfHeight = cameraHeight * tan(fov / 2.0f);
+		float halfWidth = halfHeight * aspect;
+
+		std::cout << "View frustum at Y=0: width=" << (halfWidth * 2) << ", height=" << (halfHeight * 2) << std::endl;
+
+		// Convert NDC to world coordinates on the Y=0 plane
+		// For top-down view: mouseX -> worldX, mouseY -> worldZ
+		float worldX = mouseX * halfWidth;
+		float worldZ = mouseY * halfHeight;  // Positive because your V vector points +Z
+
+		glm::vec3 intersection = glm::vec3(worldX, 0.0f, worldZ);
+
+		std::cout << "Simple intersection: (" << intersection.x << ", " << intersection.y << ", " << intersection.z << ")" << std::endl;
+
+		cubeSpawnLocation = intersection;
+		cubeSpawnLocation.y += 0.5f;
+
+		std::cout << "Simple spawn location: (" << cubeSpawnLocation.x << ", " << cubeSpawnLocation.y << ", " << cubeSpawnLocation.z << ")" << std::endl;
+		spawnCube();
+	}
+}
+
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
 	//if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
 	//{
 	//	double xpos, ypos;
 	//	glfwGetCursorPos(window, &xpos, &ypos);
-
 	//	glfwGetFramebufferSize(window, &width, &height);
 
-	//	std::cout << "Mouse Position: (" << xpos << ", " << ypos << ")" << std::endl;
-	//	//mouseX = xpos;
-	//	//mouseY = ypos;
+	//	float mouseX = (2.0f * xpos) / width - 1.0f;
+	//	float mouseY = 1.0f - (2.0f * ypos) / height;
 
-	//	mouseX = (2.0f * xpos) / width - 1.0;
-	//	mouseY = 1.0f - (2.0 * ypos) / height;
+	//	std::cout << "=== DEBUG MOUSE CLICK ===" << std::endl;
+	//	std::cout << "Screen: (" << xpos << ", " << ypos << ")" << std::endl;
+	//	std::cout << "NDC: (" << mouseX << ", " << mouseY << ")" << std::endl;
 
-	//	std::cout << "Mouse Position: (" << mouseX << ", " << mouseY << ")" << std::endl;
+	//	// Print camera info
+	//	glm::vec3 camPos = cameraController.getPosition();
+	//	std::cout << "Camera Pos (your coord): (" << camPos.x << ", " << camPos.y << ", " << camPos.z << ")" << std::endl;
 
-	//	// Convert to world coordinates
-	//	glm::vec4 rayClip = glm::vec4(mouseX, mouseY, -1.0, 1.0);
-	//	glm::vec4 rayEye = glm::inverse(pMat) * rayClip;
-	//	//rayEye /= rayEye.w;
-	//	//rayEye.w = 0.0;
-	//	rayEye = glm::vec4(rayEye.x, rayEye.y, -1.0, 0.0);
-	//	//rayEye.w = 0.0;
-	//	glm::vec4 rayWorld = glm::inverse(vMat) * rayEye;
-	//	glm::vec3 rayDirection = glm::normalize(glm::vec3(rayWorld));
+	//	// Print camera vectors
+	//	std::cout << "Camera U: (" << cameraController.getU().x << ", " << cameraController.getU().y << ", " << cameraController.getU().z << ")" << std::endl;
+	//	std::cout << "Camera V: (" << cameraController.getV().x << ", " << cameraController.getV().y << ", " << cameraController.getV().z << ")" << std::endl;
+	//	std::cout << "Camera N: (" << cameraController.getN().x << ", " << cameraController.getN().y << ", " << cameraController.getN().z << ")" << std::endl;
 
-	//	// Get camera position
-	//	glm::vec3 cameraPos = cameraController.getPosition();
-
-	//	// Calculate intersection with plane (assume y=0)
-	//	float t = -cameraPos.y / rayDirection.y;  // Plane is at y=0
-	//	glm::vec3 intersection = cameraPos + t * rayDirection;
-
-	//	cubeSpawnLocation = intersection;// *vector3(1.0f, 1.0f, 1.0f);
-	//	cubeSpawnLocation.y += 5.0f;
-
-	//	cout << "This is the mouse position in the world: " 
-	//		"x: " << cubeSpawnLocation.x << " " <<
-	//		"y : " << cubeSpawnLocation.z << " " <<
-	//		"z: " << cubeSpawnLocation.y << endl; 
-	//	spawnCube();
+	//	// Test: What should happen for center screen click?
+	//	if (abs(mouseX) < 0.1f && abs(mouseY) < 0.1f) {
+	//		std::cout << "CENTER CLICK - Should spawn at (0,0,0)!" << std::endl;
+	//	}
 	//}
 
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
@@ -218,7 +243,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 
 		// Set spawn location
 		cubeSpawnLocation = intersection;
-		cubeSpawnLocation.y += 5.0f;
+		cubeSpawnLocation.y += 0.5f;
 
 		std::cout << "NDC: (" << mouseX << ", " << mouseY << ")  World: ("
 			<< intersection.x << ", " << intersection.y << ", "
@@ -226,7 +251,6 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 
 		spawnCube();
 	}
-	
 }
 
 void spawnCube()
@@ -254,6 +278,7 @@ int main(void)
 	glfwMakeContextCurrent(window);
 
 	glfwSetMouseButtonCallback(window, mouse_button_callback);
+	//glfwSetMouseButtonCallback(window, mouse_button_callback_simple);
 
 	if (glewInit() != GLEW_OK) { exit(EXIT_FAILURE); }
 	glfwSwapInterval(1);
@@ -317,7 +342,7 @@ void init(GLFWwindow* window)
 	// Set up frustum and perspective matrix
 	glfwGetFramebufferSize(window, &width, &height);
 	aspect = (float)width / (float)height;
-	pMat = glm::perspective(1.0472f, aspect, 0.1f, 1000.0f); // 1.0472 is about 60 degrees in radians
+	pMat = glm::perspective(toRadians(60.0f), aspect, 0.1f, 1000.0f); // 1.0472 is about 60 degrees in radians
 
 	/*cameraController.setPosition(0.0f, 20.0f, 10.0f);
 	cameraController.setOrientation(glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));*/
@@ -493,14 +518,14 @@ void display(GLFWwindow* window, double currentTime)
 	timePassed = currentTime - previousTime;
 	previousTime = currentTime;
 
-	if (cubeLoc.z > 19.0f)
+	if (cubeLoc.z > 9.0f)
 		goingUp = false;
-	else if (cubeLoc.z < -19.0f)
+	else if (cubeLoc.z < -9.0f)
 		goingUp = true;
 
-	if (cubeLoc2.x > 19.0f)
+	if (cubeLoc2.x > 9.0f)
 		goingRight = false;
-	else if (cubeLoc2.x < -19.0f)
+	else if (cubeLoc2.x < -9.0f)
 		goingRight = true;
 		
 
@@ -518,8 +543,8 @@ void display(GLFWwindow* window, double currentTime)
 	cout << "This is xBounds: " << xBounds << endl;
 	cout << "This is timePassed: " << timePassed << endl;*/
 
-	cubeLoc = vector3(10.0f, yBounds * cubeSpeed, 5.0f);
-	cubeLoc2 = vector3(xBounds * cubeSpeed, -10.0f, 5.0f);
+	cubeLoc = vector3(2.0f, yBounds * cubeSpeed, 3.0f);
+	cubeLoc2 = vector3(xBounds * cubeSpeed, -2.0f, 3.0f);
 
 	// Sets the origin of the lightVMatrix to the higher of the two (9.0f or cubeLoc.z)
 	float highestPoint = std::max(10.0f, cubeLoc.y);
@@ -731,8 +756,9 @@ void passOne(double time)
 	//yBounds = (float)time;
 
 	//cubeLoc = vector3(2.0f * 0.0f, yBounds * 4.0f, 2.0f * 2.2f);
-	cmMat = glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
-	cmMat = glm::translate(cmMat, cubeLoc); // When we scale by 0.5, our translation vectors are also scaled, so 10.0f from before becomes 5.0f
+	//cmMat = glm::scale(cmMat, vector3(0.5f, 0.5f, 0.5f));
+	cmMat = glm::translate(glm::mat4(1.0f), cubeLoc) * glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f)); // When we scale by 0.5, our translation vectors are also scaled, so 10.0f from before becomes 5.0f
+	//cmMat = glm::scale(cmMat, vector3(0.5f, 0.5f, 0.5f));
 	//cmMat = glm::translate(glm::mat4(1.0f), vector3(0.0f, 10.0f, 2.0f));
 
 
@@ -753,8 +779,9 @@ void passOne(double time)
 
 	glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
 
-	cmMat = glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
-	cmMat = glm::translate(cmMat, cubeLoc2);
+	//cmMat = glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
+	cmMat = glm::translate(glm::mat4(1.0f), cubeLoc2) * glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
+	//cmMat = glm::scale(cmMat, vector3(0.5f, 0.5f, 0.5f));
 
 	shadowMVP1 = lightPMatrix * lightVMatrix * cmMat;
 	//sLoc = glGetUniformLocation(renderingProgram1, "shadowMVP");
@@ -775,8 +802,9 @@ void passOne(double time)
 
 	if (isLeftClick)// && leftClick != 0)
 	{
-		cmMat = glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
-		cmMat = glm::translate(cmMat, cubeSpawnLocation);
+		//cmMat = glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
+		cmMat = glm::translate(glm::mat4(1.0f), cubeSpawnLocation) * glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
+		//cmMat = glm::scale(cmMat, vector3(0.5f, 0.5f, 0.5f));
 
 		shadowMVP1 = lightPMatrix * lightVMatrix * cmMat;
 		//sLoc = glGetUniformLocation(renderingProgram1, "shadowMVP");
@@ -922,8 +950,9 @@ void passTwo(double time)
 
 	//cubeLoc = vector3(2.0f * 0.0f, yBounds * 4.0f, 2.0f * 2.2f);
 
-	cmMat = glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
-	cmMat = glm::translate(cmMat, cubeLoc); // When we scale by 0.5, our translation vectors are also scaled, so 10.0f from before becomes 5.0f
+	//cmMat = glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
+	cmMat = glm::translate(glm::mat4(1.0f), cubeLoc) * glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f)); // When we scale by 0.5, our translation vectors are also scaled, so 10.0f from before becomes 5.0f
+	//cmMat = glm::scale(cmMat, vector3(0.5f, 0.5f, 0.5f));
 	//cmMat = glm::scale(cmMat, vector3(0.5f, 0.5f, 0.5f));
 	//cmMat = glm::translate(glm::mat4(1.0f), vector3(0.0f, 10.0f, 2.0f));
 
@@ -969,8 +998,9 @@ void passTwo(double time)
 	updateCamera();
 	vMat = cameraRMat * cameraTMat;
 
-	cmMat = glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
-	cmMat = glm::translate(cmMat, cubeLoc2); // When we scale by 0.5, our translation vectors are also scaled, so 10.0f from before becomes 5.0f
+	//cmMat = glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
+	cmMat = glm::translate(glm::mat4(1.0f), cubeLoc2) * glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f)); // When we scale by 0.5, our translation vectors are also scaled, so 10.0f from before becomes 5.0f
+	//cmMat = glm::scale(cmMat, vector3(0.5f, 0.5f, 0.5f));
 	//cmMat = glm::scale(cmMat, vector3(0.5f, 0.5f, 0.5f));
 
 	currentLightPos = lightLoc;
@@ -1014,8 +1044,9 @@ void passTwo(double time)
 		updateCamera();
 		vMat = cameraRMat * cameraTMat;
 
-		cmMat = glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
-		cmMat = glm::translate(cmMat, cubeSpawnLocation); // When we scale by 0.5, our translation vectors are also scaled, so 10.0f from before becomes 5.0f
+		//cmMat = glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
+		cmMat = glm::translate(glm::mat4(1.0f), cubeSpawnLocation) * glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f)); // When we scale by 0.5, our translation vectors are also scaled, so 10.0f from before becomes 5.0f
+		//cmMat = glm::scale(cmMat, vector3(0.5f, 0.5f, 0.5f));
 		//cmMat = glm::scale(cmMat, vector3(0.5f, 0.5f, 0.5f));
 
 		currentLightPos = lightLoc;
@@ -1303,6 +1334,14 @@ void updateCamera()
 		cameraController.getU().z, cameraController.getV().z, -cameraController.getN().z, 0.0f,
 		0.0f, 0.0f, 0.0f, 1.0f
 	);
+
+	// FIX: Camera basis vectors should be ROWS, not columns
+	/*cameraRMat = glm::mat4(
+		cameraController.getU().x, cameraController.getU().y, cameraController.getU().z, 0.0f,
+		cameraController.getV().x, cameraController.getV().y, cameraController.getV().z, 0.0f,
+		-cameraController.getN().x, -cameraController.getN().y, -cameraController.getN().z, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	);*/
 }
 
 glm::vec3 convert(glm::vec3 ogVec)

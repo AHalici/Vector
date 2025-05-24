@@ -259,7 +259,8 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 	{
 
 		// Point light toward intersection using your coordinate system
-			// We have to create a vector from our light to our target location. We then normalize that vector 
+			// We have to create a vector from our light to our target location. 
+			// We then normalize that vector because if it wasn't, it would cause different lighting behaviors based on different lengths
 		glm::vec3 currentLight = lightLoc;
 		glm::vec3 target = intersection;
 		glm::vec3 direction = glm::normalize(target - currentLight);

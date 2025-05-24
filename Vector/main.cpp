@@ -24,13 +24,13 @@ GLuint vbo[numVBOs];
 
 // white light
 float globalAmbient[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-float lightAmbient[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
+float lightAmbient[4] = { 0.1f, 0.1f, 0.1f, 1.0f };
 float lightDiffuse[4] = { 1.2f, 1.2f, 1.2f, 1.0f };
 float lightSpecular[4] = { 0.5f, 0.5f, 0.5f, 0.0f };
 float lightDirection[3] = { 0.0f, 0.0f, -1.0f };
 
 // Spotlight
-float spotlightCutoff = 20.0f;
+float spotlightCutoff = 30.0f;
 float spotLightExponent = 4.0f;
 
 // gold material
@@ -181,81 +181,102 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 	//	}
 	//}
 
+	
+	double xpos, ypos;
+	glfwGetCursorPos(window, &xpos, &ypos);
+	glfwGetFramebufferSize(window, &width, &height);
+
+	// Convert to NDC
+	float mouseX = (2.0f * xpos) / width - 1.0f;
+	float mouseY = 1.0f - (2.0f * ypos) / height;
+
+	// Create points at near and far planes: CLIP SPACE???
+	glm::vec4 nearPoint = glm::vec4(mouseX, mouseY, -1.0f, 1.0f);
+	glm::vec4 farPoint = glm::vec4(mouseX, mouseY, 1.0f, 1.0f);
+
+
+	//glm::mat4 invPV = glm::inverse(pMat * vMat); 
+		// Can be done in one step like this. 
+			// ASK WHY IT'S NOT vMat * pMat if we read from right to left since pMat should be resolved first
+		
+	// Inverse Perspective Matrix
+	glm::vec4 nearWorld4 = glm::inverse(pMat) * nearPoint;
+	glm::vec4 farWorld4 = glm::inverse(pMat) * farPoint;
+
+	// Perform perspective divide
+		// Can be done after inverse of vMat as well
+	nearWorld4 /= nearWorld4.w;
+	farWorld4 /= farWorld4.w;
+
+	// Convert from View Space to World Space (Inverse View Matrix)
+	glm::vec4 nearWorld4W = glm::inverse(vMat) * nearWorld4;
+	glm::vec4 farWorld4W = glm::inverse(vMat) * farWorld4;
+
+	// ------------------------------------- Inverse Perspective and View Matrices at the same time --------------------
+	// -----------------------------------------------------------------------------------------------------------------
+	//// Unproject both points in one step
+	//glm::mat4 invPV = glm::inverse(pMat * vMat);
+	//glm::vec4 nearWorld4 = invPV * nearPoint;
+	//glm::vec4 farWorld4 = invPV * farPoint;
+
+	//// Perform perspective divide
+	//nearWorld4 /= nearWorld4.w;
+	//farWorld4 /= farWorld4.w;
+
+	// -----------------------------------------------------------------------------------------------------------------
+	// -----------------------------------------------------------------------------------------------------------------
+		
+	// Convert to vec3
+	glm::vec3 nearWorld(nearWorld4W);
+	glm::vec3 farWorld(farWorld4W);
+
+	// Create ray
+	glm::vec3 rayDir = glm::normalize(farWorld - nearWorld);
+
+	// Get camera position
+	glm::vec3 cameraPos = cameraController.getPosition();
+
+	// Calculate plane intersection
+	float t = -cameraPos.y / rayDir.y;
+
+	// Compute intersection
+	glm::vec3 intersection = cameraPos + t * rayDir;
+	
+
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
-	{
-		double xpos, ypos;
-		glfwGetCursorPos(window, &xpos, &ypos);
-		glfwGetFramebufferSize(window, &width, &height);
-
-		// Convert to NDC
-		float mouseX = (2.0f * xpos) / width - 1.0f;
-		float mouseY = 1.0f - (2.0f * ypos) / height;
-
-		// Create points at near and far planes: CLIP SPACE???
-		glm::vec4 nearPoint = glm::vec4(mouseX, mouseY, -1.0f, 1.0f);
-		glm::vec4 farPoint = glm::vec4(mouseX, mouseY, 1.0f, 1.0f);
-
-
-		//glm::mat4 invPV = glm::inverse(pMat * vMat); 
-			// Can be done in one step like this. 
-				// ASK WHY IT'S NOT vMat * pMat if we read from right to left since pMat should be resolved first
-		
-		// Inverse Perspective Matrix
-		glm::vec4 nearWorld4 = glm::inverse(pMat) * nearPoint;
-		glm::vec4 farWorld4 = glm::inverse(pMat) * farPoint;
-
-		// Perform perspective divide
-			// Can be done after inverse of vMat as well
-		nearWorld4 /= nearWorld4.w;
-		farWorld4 /= farWorld4.w;
-
-		// Convert from View Space to World Space (Inverse View Matrix)
-		glm::vec4 nearWorld4W = glm::inverse(vMat) * nearWorld4;
-		glm::vec4 farWorld4W = glm::inverse(vMat) * farWorld4;
-
-		// ------------------------------------- Inverse Perspective and View Matrices at the same time --------------------
-		// -----------------------------------------------------------------------------------------------------------------
-		//// Unproject both points in one step
-		//glm::mat4 invPV = glm::inverse(pMat * vMat);
-		//glm::vec4 nearWorld4 = invPV * nearPoint;
-		//glm::vec4 farWorld4 = invPV * farPoint;
-
-		//// Perform perspective divide
-		//nearWorld4 /= nearWorld4.w;
-		//farWorld4 /= farWorld4.w;
-
-		// -----------------------------------------------------------------------------------------------------------------
-		// -----------------------------------------------------------------------------------------------------------------
-		
-		// Convert to vec3
-		glm::vec3 nearWorld(nearWorld4W);
-		glm::vec3 farWorld(farWorld4W);
-
-		// Create ray
-		glm::vec3 rayDir = glm::normalize(farWorld - nearWorld);
-
-		// Get camera position
-		glm::vec3 cameraPos = cameraController.getPosition();
-
-		// Calculate plane intersection
-		float t = -cameraPos.y / rayDir.y;
-
-		// Compute intersection
-		glm::vec3 intersection = cameraPos + t * rayDir;
-
+	{ 
 		// Set spawn location
 		cubeSpawnLocation = intersection;
 		cubeSpawnLocation.y += 0.5f;
-
-		// POINTS LIGHT IN DIRECTION OF MOUSE CLICK
-		lightDirection[0] = cubeSpawnLocation.x;
-		lightDirection[2] = cubeSpawnLocation.z;
 
 		std::cout << "NDC: (" << mouseX << ", " << mouseY << ")  World: ("
 			<< intersection.x << ", " << intersection.y << ", "
 			<< intersection.z << ")" << std::endl;
 
 		spawnCube();
+	}
+	else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
+	{
+
+		// Point light toward intersection using your coordinate system
+			// We have to create a vector from our light to our target location. We then normalize that vector 
+		glm::vec3 currentLight = lightLoc;
+		glm::vec3 target = intersection;
+		glm::vec3 direction = glm::normalize(target - currentLight);
+
+		lightDirection[0] = direction.x;
+		lightDirection[1] = direction.y;
+		lightDirection[2] = direction.z;
+		installLights(renderingProgram2);
+	}
+	else if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_PRESS)
+	{
+		lightLoc = vector3(intersection.x, intersection.z, 0.5f);
+		currentLightPos = lightLoc;
+
+		//lightVMatrix = glm::lookAt(currentLightPos, vector3(lightDirection[0], lightDirection[2], lightDirection[1]), vector3(0.0f, 1.0f, 0.0f));
+
+		installLights(renderingProgram2);
 	}
 }
 
@@ -583,9 +604,11 @@ void display(GLFWwindow* window, double currentTime)
 
 	// Sets the origin of the lightVMatrix to the higher of the two (9.0f or cubeLoc.z)
 	float highestPoint = std::max(10.0f, cubeLoc.y);
-	glm::vec3 lightTarget = vector3(0.0f, highestPoint, 0.0f);
+	//glm::vec3 lightTarget = vector3(0.0f, highestPoint, 0.0f);
 
-	lightVMatrix = glm::lookAt(currentLightPos, vector3(lightDirection[0], lightDirection[2], lightDirection[1]), vector3(0.0f, 1.0f, 0.0f));
+	// Calculate target position from light position + direction
+	glm::vec3 lightTarget = currentLightPos + vector3(lightDirection[0], lightDirection[2], lightDirection[1]);
+	lightVMatrix = glm::lookAt(currentLightPos, lightTarget, vector3(0.0f, 1.0f, 0.0f));
 	
 	// Changed to Orthographic Projection because it's better for directional lighting, but not for positional or spotlight
 		// Using Orthographic projection doesn't allow shadow to change angles when the object is moved or the light moves

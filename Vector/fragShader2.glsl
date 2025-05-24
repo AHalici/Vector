@@ -98,9 +98,9 @@ void main(void)
 	vec4 shadowColor = globalAmbient * material.ambient
 				+ light.ambient * material.ambient * attenuation;
 
-	vec4 lightedColor = light.diffuse * material.diffuse * max(dot(L,N),0.0);
-				// + light.specular * material.specular
-				// * pow(max(dot(H,N),0.0),material.shininess);
+	vec4 lightedColor = light.diffuse * material.diffuse * max(dot(L,N),0.0)
+				+ light.specular * material.specular
+				* pow(max(dot(H,N),0.0),material.shininess);
 
 	lightedColor = 4 * (lightedColor * attenuation); // Increased the value to increase the overall light in lighted areas
 

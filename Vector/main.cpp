@@ -30,7 +30,7 @@ float lightSpecular[4] = { 0.5f, 0.5f, 0.5f, 0.0f };
 float lightDirection[3] = { 0.0f, 0.0f, -1.0f };
 
 // Spotlight
-float spotlightCutoff = 45.0f;
+float spotlightCutoff = 20.0f;
 float spotLightExponent = 4.0f;
 
 // gold material
@@ -66,7 +66,7 @@ float yBounds, xBounds;
 float timePassed;
 float previousTime;
 //glm::vec3 cubeLoc = vector3(2.0f * 0.0f, yBounds * 2.0f, 2.0f * 2.2f);
-glm::vec3 lightLoc = vector3(0.0f, 0.0f, 1.0f); // If I make the light closer to the plane with the z value, the fov of the lightPMatrix isn't wide enough and the shadow has artifacts
+glm::vec3 lightLoc = vector3(0.0f, 0.0f, 0.5f); // If I make the light closer to the plane with the z value, the fov of the lightPMatrix isn't wide enough and the shadow has artifacts
 //glm::vec3 lightLoc = glm::vec3(0.0f, 30.0f, 5.0f);
 glm::vec3 cubeLoc, cubeLoc2, cubeSpawnLocation;// = vector3(2.0f * 0.0f, yBounds * 4.0f, 2.0f * 2.2f);
 
@@ -246,6 +246,10 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 		// Set spawn location
 		cubeSpawnLocation = intersection;
 		cubeSpawnLocation.y += 0.5f;
+
+		// POINTS LIGHT IN DIRECTION OF MOUSE CLICK
+		lightDirection[0] = cubeSpawnLocation.x;
+		lightDirection[2] = cubeSpawnLocation.z;
 
 		std::cout << "NDC: (" << mouseX << ", " << mouseY << ")  World: ("
 			<< intersection.x << ", " << intersection.y << ", "

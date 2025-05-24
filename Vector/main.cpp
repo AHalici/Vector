@@ -30,7 +30,7 @@ float lightSpecular[4] = { 0.5f, 0.5f, 0.5f, 0.0f };
 float lightDirection[3] = { 0.0f, 0.0f, -1.0f };
 
 // Spotlight
-float spotlightCutoff = 50.0f;
+float spotlightCutoff = 45.0f;
 float spotLightExponent = 4.0f;
 
 // gold material
@@ -581,13 +581,13 @@ void display(GLFWwindow* window, double currentTime)
 	float highestPoint = std::max(10.0f, cubeLoc.y);
 	glm::vec3 lightTarget = vector3(0.0f, highestPoint, 0.0f);
 
-	lightVMatrix = glm::lookAt(currentLightPos, vector3(0.0f, 0.0f, 0.0f), vector3(0.0f, 1.0f, 0.0f));
+	lightVMatrix = glm::lookAt(currentLightPos, vector3(lightDirection[0], lightDirection[2], lightDirection[1]), vector3(0.0f, 1.0f, 0.0f));
 	
 	// Changed to Orthographic Projection because it's better for directional lighting, but not for positional or spotlight
 		// Using Orthographic projection doesn't allow shadow to change angles when the object is moved or the light moves
 	//float orthoSize = 8.0f;
 	//lightPMatrix = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize + 5.0f, 1.0f, 50.0f);
-	lightPMatrix = glm::perspective(toRadians(90.0f), aspect, 0.1f, 1000.0f);
+	lightPMatrix = glm::perspective(toRadians(spotlightCutoff * 2.0f), aspect, 0.1f, 1000.0f);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, shadowBuffer);
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadowTex, 0);

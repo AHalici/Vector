@@ -41,7 +41,7 @@ float kq = 0.032;
 float lookup(float x, float y)
 {  	float t = textureProj(shadowTex, shadow_coord + vec4(x * 0.001 * shadow_coord.w,
 														 y * 0.001 * shadow_coord.w,
-														 -0.01, 0.0));
+														 0.00, 0.0));
 	return t;
 }
 
@@ -56,13 +56,13 @@ void main(void)
 	vec3 D = normalize(-light.direction);
 
 	// Cutoff Angle
-	float theta = radians(light.cutoffAngle);
+	float theta = cos(radians(light.cutoffAngle));
 	float phi = dot(D, L); // This gives the cos between D and L, not the angle itself, so we don't need to get the cos in intensity factor
 
 	float intensityFactor = 0.0;
 
 	if (phi >= theta)
-		intensityFactor = pow(cos(phi), light.exponent);
+		intensityFactor = pow(phi, light.exponent);
 	else
 		intensityFactor = 0.0;
 
@@ -100,7 +100,7 @@ void main(void)
 
 	vec4 lightedColor = light.diffuse * material.diffuse * max(dot(L,N),0.0)
 				+ light.specular * material.specular
-				* pow(max(dot(H,N),0.0),material.shininess*3.0);
+				* pow(max(dot(H,N),0.0),material.shininess);
 
 	lightedColor = 4 * (lightedColor * attenuation); // Increased the value to increase the overall light in lighted areas
 

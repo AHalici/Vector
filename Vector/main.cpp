@@ -24,9 +24,9 @@ GLuint vbo[numVBOs];
 
 // white light
 float globalAmbient[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-float lightAmbient[4] = { 0.1f, 0.1f, 0.1f, 1.0f };
+float lightAmbient[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 float lightDiffuse[4] = { 1.2f, 1.2f, 1.2f, 1.0f };
-float lightSpecular[4] = { 0.5f, 0.5f, 0.5f, 0.0f };
+float lightSpecular[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 float lightDirection[3] = { 0.0f, 0.0f, -1.0f };
 
 // Spotlight
@@ -66,7 +66,7 @@ float yBounds, xBounds;
 float timePassed;
 float previousTime;
 //glm::vec3 cubeLoc = vector3(2.0f * 0.0f, yBounds * 2.0f, 2.0f * 2.2f);
-glm::vec3 lightLoc = vector3(0.0f, 0.0f, 0.5f); // If I make the light closer to the plane with the z value, the fov of the lightPMatrix isn't wide enough and the shadow has artifacts
+glm::vec3 lightLoc = vector3(0.0f, 0.0f, 0.1f); // If I make the light closer to the plane with the z value, the fov of the lightPMatrix isn't wide enough and the shadow has artifacts
 //glm::vec3 lightLoc = glm::vec3(0.0f, 30.0f, 5.0f);
 glm::vec3 cubeLoc, cubeLoc2, cubeSpawnLocation;// = vector3(2.0f * 0.0f, yBounds * 4.0f, 2.0f * 2.2f);
 
@@ -247,7 +247,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 	{ 
 		// Set spawn location
 		cubeSpawnLocation = intersection;
-		cubeSpawnLocation.y += 0.5f;
+		cubeSpawnLocation.y += lightLoc.y;
 
 		std::cout << "NDC: (" << mouseX << ", " << mouseY << ")  World: ("
 			<< intersection.x << ", " << intersection.y << ", "
@@ -262,17 +262,56 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 			// We have to create a vector from our light to our target location. 
 			// We then normalize that vector because if it wasn't, it would cause different lighting behaviors based on different lengths
 		glm::vec3 currentLight = lightLoc;
+		intersection.y = lightLoc.y; // Fixed at 0.5f so that the angle of the light doesn't change and stays at the same height as the light position.
 		glm::vec3 target = intersection;
 		glm::vec3 direction = glm::normalize(target - currentLight);
 
+		/*if (direction.x > direction.z)
+		{
+			direction.x = 0.7f;
+		}
+		else if (direction.z > direction.x)
+		{
+			direction.z = 0.7f;
+		}*/
+		cout << "This is the direction: x: " << direction.x << "  y: " << direction.y << "  z: " << direction.z << endl;
 		lightDirection[0] = direction.x;
-		lightDirection[1] = direction.y;
+		lightDirection[1] = direction.y; 
 		lightDirection[2] = direction.z;
 		installLights(renderingProgram2);
+
+		//// Get horizontal direction from light to intersection point
+		//glm::vec3 currentLight = lightLoc;
+		//glm::vec3 target = intersection;
+
+		//// Calculate horizontal direction (ignore Y difference)
+		//glm::vec3 horizontalDir = glm::vec3(target.x - currentLight.x, 0.0f, target.z - currentLight.z);
+
+		//// If the horizontal distance is too small, use a default direction
+		//if (glm::length(horizontalDir) < 0.1f) {
+		//	horizontalDir = glm::vec3(1.0f, 0.0f, 0.0f); // Default to pointing right
+		//}
+		//else {
+		//	horizontalDir = glm::normalize(horizontalDir);
+		//}
+
+		//// Apply a reasonable downward angle (e.g., 30 degrees)
+		//float downwardAngle = glm::radians(30.0f); // Adjust this angle as needed
+		//glm::vec3 direction = glm::vec3(
+		//	horizontalDir.x * cos(downwardAngle),
+		//	-sin(downwardAngle), // Negative for downward
+		//	horizontalDir.z * cos(downwardAngle)
+		//);
+
+		//cout << "Direction: x: " << direction.x << "  y: " << direction.y << "  z: " << direction.z << endl;
+		//lightDirection[0] = direction.x;
+		//lightDirection[1] = direction.y;
+		//lightDirection[2] = direction.z;
+		//installLights(renderingProgram2);
 	}
 	else if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_PRESS)
 	{
-		lightLoc = vector3(intersection.x, intersection.z, 0.5f);
+		lightLoc = vector3(intersection.x, intersection.z, lightLoc.y);
 		currentLightPos = lightLoc;
 
 		//lightVMatrix = glm::lookAt(currentLightPos, vector3(lightDirection[0], lightDirection[2], lightDirection[1]), vector3(0.0f, 1.0f, 0.0f));
@@ -909,70 +948,70 @@ void passOne(double time)
 	// -----------------------------------------------------------------------------------------
 	// ----------------------------------------- Vertical Lines (Blue) -----------------------------------------
 
-	isLine = true;
-	glUniform1i(isLineLoc1, isLine);
+	//isLine = true;
+	//glUniform1i(isLineLoc1, isLine);
 
-	//vlmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 4.0f, 1.0f));
-	vlmMat = glm::translate(glm::mat4(1.0f), vector3(-10.0f, 0.0f, 0.0f));
-	//mvMat = vMat * vlmMat;
+	////vlmMat = glm::scale(glm::mat4(1.0f), vector3(1.0f, 4.0f, 1.0f));
+	//vlmMat = glm::translate(glm::mat4(1.0f), vector3(-10.0f, 0.0f, 0.0f));
+	////mvMat = vMat * vlmMat;
 
-	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+	////glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
 
-	shadowMVP1 = lightPMatrix * lightVMatrix * vlmMat;
-	//sLoc1 = glGetUniformLocation(renderingProgram1, "shadowMVP");
-	glUniformMatrix4fv(sLoc1, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
+	//shadowMVP1 = lightPMatrix * lightVMatrix * vlmMat;
+	////sLoc1 = glGetUniformLocation(renderingProgram1, "shadowMVP");
+	//glUniformMatrix4fv(sLoc1, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
 
-	// Bind vertex attribute to vbo[0] values and enable vertex attribute
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[4]);
-	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
-	glEnableVertexAttribArray(0);
+	//// Bind vertex attribute to vbo[0] values and enable vertex attribute
+	//glBindBuffer(GL_ARRAY_BUFFER, vbo[4]);
+	//glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	//glEnableVertexAttribArray(0);
 
-	//glClear(GL_DEPTH_BUFFER_BIT);
-	glEnable(GL_CULL_FACE);
-	glFrontFace(GL_CCW);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
+	////glClear(GL_DEPTH_BUFFER_BIT);
+	//glEnable(GL_CULL_FACE);
+	//glFrontFace(GL_CCW);
+	//glEnable(GL_DEPTH_TEST);
+	//glDepthFunc(GL_LEQUAL);
 
-	glDrawArraysInstanced(GL_LINES, 0, lineNumVertices, 21);
-	isLine = false;
-	glUniform1i(isLineLoc1, isLine);
-
-
-	// -----------------------------------------------------------------------------------------
-	// ----------------------------------------- Horizontal Lines (Green) -----------------------------------------
-
-	isRow = true;
-	glUniform1i(isRowLoc1, isRow);
-
-	//hlmMat = glm::scale(glm::mat4(1.0f), vector3(4.0f, 1.0f, 1.0f));
-	hlmMat = glm::translate(glm::mat4(1.0f), vector3(0.0f, -10.0f, 0.0f));
-
-	/*hlmMat = glm::scale(glm::mat4(1.0f), vector3(4.0f, 2.0f, 1.0f));
-	hlmMat = glm::translate(hlmMat, vector3(-2.5f, -5.0f, 0.0f));*/
+	//glDrawArraysInstanced(GL_LINES, 0, lineNumVertices, 21);
+	//isLine = false;
+	//glUniform1i(isLineLoc1, isLine);
 
 
-	//mvMat = vMat * vlmMat;
+	//// -----------------------------------------------------------------------------------------
+	//// ----------------------------------------- Horizontal Lines (Green) -----------------------------------------
 
-	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+	//isRow = true;
+	//glUniform1i(isRowLoc1, isRow);
 
-	shadowMVP1 = lightPMatrix * lightVMatrix * hlmMat;
-	//sLoc1 = glGetUniformLocation(renderingProgram1, "shadowMVP");
-	glUniformMatrix4fv(sLoc1, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
+	////hlmMat = glm::scale(glm::mat4(1.0f), vector3(4.0f, 1.0f, 1.0f));
+	//hlmMat = glm::translate(glm::mat4(1.0f), vector3(0.0f, -10.0f, 0.0f));
 
-	// Bind vertex attribute to vbo[0] values and enable vertex attribute
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
-	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
-	glEnableVertexAttribArray(0);
+	///*hlmMat = glm::scale(glm::mat4(1.0f), vector3(4.0f, 2.0f, 1.0f));
+	//hlmMat = glm::translate(hlmMat, vector3(-2.5f, -5.0f, 0.0f));*/
 
-	//glClear(GL_DEPTH_BUFFER_BIT);
-	glEnable(GL_CULL_FACE);
-	glFrontFace(GL_CCW);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
 
-	glDrawArraysInstanced(GL_LINES, 0, lineNumVertices, 21);
-	isRow = false;
-	glUniform1i(isRowLoc1, isRow);
+	////mvMat = vMat * vlmMat;
+
+	////glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+
+	//shadowMVP1 = lightPMatrix * lightVMatrix * hlmMat;
+	////sLoc1 = glGetUniformLocation(renderingProgram1, "shadowMVP");
+	//glUniformMatrix4fv(sLoc1, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
+
+	//// Bind vertex attribute to vbo[0] values and enable vertex attribute
+	//glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+	//glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	//glEnableVertexAttribArray(0);
+
+	////glClear(GL_DEPTH_BUFFER_BIT);
+	//glEnable(GL_CULL_FACE);
+	//glFrontFace(GL_CCW);
+	//glEnable(GL_DEPTH_TEST);
+	//glDepthFunc(GL_LEQUAL);
+
+	//glDrawArraysInstanced(GL_LINES, 0, lineNumVertices, 21);
+	//isRow = false;
+	//glUniform1i(isRowLoc1, isRow);
 
 }
 
@@ -983,7 +1022,7 @@ void passTwo(double time)
 	// DEBUG: Verify which program is currently active
 	GLint currentProgram;
 	glGetIntegerv(GL_CURRENT_PROGRAM, &currentProgram);
-	std::cout << "Current active program: " << currentProgram << " (should be " << renderingProgram2 << ")" << std::endl;
+	//std::cout << "Current active program: " << currentProgram << " (should be " << renderingProgram2 << ")" << std::endl;
 
 	//yBounds = (float)time;
 
@@ -1518,7 +1557,7 @@ void installLights(int renderingProgram)
 	lightPos[2] = currentLightPos.z;
 
 	// DEBUG: Print light position
-	std::cout << "Light position: (" << lightPos[0] << ", " << lightPos[1] << ", " << lightPos[2] << ")" << std::endl;
+	//std::cout << "Light position: (" << lightPos[0] << ", " << lightPos[1] << ", " << lightPos[2] << ")" << std::endl;
 
 	matAmb[0] = thisAmb[0]; matAmb[1] = thisAmb[1]; matAmb[2] = thisAmb[2]; matAmb[3] = thisAmb[3];
 	matDif[0] = thisDif[0]; matDif[1] = thisDif[1]; matDif[2] = thisDif[2]; matDif[3] = thisDif[3];

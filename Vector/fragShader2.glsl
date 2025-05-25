@@ -45,6 +45,34 @@ float lookup(float x, float y)
 	return t;
 }
 
+// Example 1: Visualize a single float value (0.0 to 1.0)
+void debugFloat(float value) {
+    fragColor = vec4(value, value, value, 1.0); // Shows as grayscale
+    return; // Exit early to only show this debug info
+}
+
+// Example 2: Visualize a vec3 as RGB
+void debugVec3(vec3 value) {
+    // Normalize to 0-1 range if needed
+    vec3 normalized = (value + 1.0) * 0.5; // Converts -1,1 range to 0,1
+    fragColor = vec4(normalized, 1.0);
+    return;
+}
+
+// Example 3: Visualize different ranges with color coding
+void debugValueWithColor(float value) {
+    if (value < 0.0) {
+        fragColor = vec4(1.0, 0.0, 0.0, 1.0); // Red for negative
+    } else if (value < 0.5) {
+        fragColor = vec4(0.0, 1.0, 0.0, 1.0); // Green for 0-0.5
+    } else if (value < 1.0) {
+        fragColor = vec4(0.0, 0.0, 1.0, 1.0); // Blue for 0.5-1.0
+    } else if (value > 6.0) {
+        fragColor = vec4(1.0, 1.0, 0.0, 1.0); // Yellow for > 1.0
+    }
+    return;
+}
+
 void main(void)
 {
 	vec3 L = normalize(varyingLightDir);
@@ -72,6 +100,8 @@ void main(void)
 	// Light attenuation
 	vec3 distanceVector = varyingVertPos - light.position;
 	float distance = length(distanceVector);
+
+	
 		// Have to get the scalar value from the vector because that is all we want.
 		// We couldn't use it in our attenuation formula because we would be adding a scalar (eg. kc) to a vector
 	float attenuation = 1.0 / (kc + kl * distance + kq * distance * distance);
@@ -97,15 +127,26 @@ void main(void)
 
 	vec4 shadowColor = globalAmbient * material.ambient
 				+ light.ambient * material.ambient * attenuation;
+	
+	vec4 lightedColor;
 
-	vec4 lightedColor = light.diffuse * material.diffuse * max(dot(L,N),0.0)
+	if (distance < 6.0f)
+	{
+		lightedColor = light.diffuse * material.diffuse * max(dot(L,N),0.0);
 				+ light.specular * material.specular
 				* pow(max(dot(H,N),0.0),material.shininess);
 
-	lightedColor = 4 * (lightedColor * attenuation); // Increased the value to increase the overall light in lighted areas
+		lightedColor = 4 * (lightedColor * attenuation);
+	}
+//	vec4 lightedColor = light.diffuse * material.diffuse * max(dot(L,N),0.0);
+//				+ light.specular * material.specular
+//				* pow(max(dot(H,N),0.0),material.shininess);
+
+	//lightedColor = 4 * (lightedColor * attenuation); // Increased the value to increase the overall light in lighted areas
 
 	fragColor = vec4((shadowColor.xyz + intensityFactor * shadowfactor * lightedColor.xyz),1.0);
 
+	//debugValueWithColor(distance);
 	/*if (isLine)
 	{
 		fragColor = vec4(0.0, 0.0, 1.0, 1.0);

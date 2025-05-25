@@ -282,6 +282,7 @@ void handleAllMouseActions(GLFWwindow* window)
 
 		//lightVMatrix = glm::lookAt(currentLightPos, vector3(lightDirection[0], lightDirection[2], lightDirection[1]), vector3(0.0f, 1.0f, 0.0f));
 
+
 		installLights(renderingProgram2);
 	}
 

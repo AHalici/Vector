@@ -34,8 +34,9 @@ uniform bool isRow;
 uniform bool isAxes;
 
 float shadowfactor = 0.0;
-float kc = 0.01;
-float kl = 0.01;
+
+float kc = 1.0;
+float kl = 0.09;
 float kq = 0.032;
 
 float lookup(float x, float y)
@@ -67,7 +68,7 @@ void debugValueWithColor(float value) {
         fragColor = vec4(0.0, 1.0, 0.0, 1.0); // Green for 0-0.5
     } else if (value < 1.0) {
         fragColor = vec4(0.0, 0.0, 1.0, 1.0); // Blue for 0.5-1.0
-    } else if (value > 6.0) {
+    } else if (value > 8.0) {
         fragColor = vec4(1.0, 1.0, 0.0, 1.0); // Yellow for > 1.0
     }
     return;
@@ -105,8 +106,7 @@ void main(void)
 		// Have to get the scalar value from the vector because that is all we want.
 		// We couldn't use it in our attenuation formula because we would be adding a scalar (eg. kc) to a vector
 	float attenuation = 1.0 / (kc + kl * distance + kq * distance * distance);
-
-
+	
 	float swidth = 2.5;
 	vec2 o = mod(floor(gl_FragCoord.xy), 2.0) * swidth;
 	shadowfactor += lookup(-1.5*swidth + o.x,  1.5*swidth - o.y);
@@ -130,13 +130,13 @@ void main(void)
 	
 	vec4 lightedColor;
 
-	if (distance < 6.0f)
+	if (distance < 8.0f)
 	{
-		lightedColor = light.diffuse * material.diffuse * max(dot(L,N),0.0);
+		lightedColor = light.diffuse * material.diffuse * max(dot(L,N),0.0)
 				+ light.specular * material.specular
 				* pow(max(dot(H,N),0.0),material.shininess);
 
-		lightedColor = 4 * (lightedColor * attenuation);
+		lightedColor =  ((15 * lightedColor) * (attenuation)); // Multiplying by 4 to increase
 	}
 //	vec4 lightedColor = light.diffuse * material.diffuse * max(dot(L,N),0.0);
 //				+ light.specular * material.specular

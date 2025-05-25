@@ -105,6 +105,12 @@ glm::mat4 b;
 // Mouse things
 double mouseX, mouseY;
 bool isLeftClick = false;
+bool leftMouseHeld = false;
+bool rightMouseHeld = false;
+bool middleMouseHeld = false;
+bool wasleftMouseHeld = false;
+bool wasrightMouseHeld = false;
+bool wasmiddleMouseHeld = false;
 GLuint leftClick = 0;
 
 float toRadians(float degrees) { return (degrees * 2.0f * 3.14159f) / 360.0f; }
@@ -149,6 +155,141 @@ void reloadShaders() {
 
 	// Check for compilation errors
 	Utils::checkOpenGLError();
+}
+
+glm::vec3 getMouseWorldIntersection(GLFWwindow* window) 
+{
+	double xpos, ypos;
+	glfwGetCursorPos(window, &xpos, &ypos);
+	glfwGetFramebufferSize(window, &width, &height);
+
+	// Convert to NDC
+	float mouseX = (2.0f * xpos) / width - 1.0f;
+	float mouseY = 1.0f - (2.0f * ypos) / height;
+
+	// Create points at near and far planes: CLIP SPACE???
+	glm::vec4 nearPoint = glm::vec4(mouseX, mouseY, -1.0f, 1.0f);
+	glm::vec4 farPoint = glm::vec4(mouseX, mouseY, 1.0f, 1.0f);
+
+
+	//glm::mat4 invPV = glm::inverse(pMat * vMat); 
+		// Can be done in one step like this. 
+			// ASK WHY IT'S NOT vMat * pMat if we read from right to left since pMat should be resolved first
+
+	// Inverse Perspective Matrix
+	glm::vec4 nearWorld4 = glm::inverse(pMat) * nearPoint;
+	glm::vec4 farWorld4 = glm::inverse(pMat) * farPoint;
+
+	// Perform perspective divide
+		// Can be done after inverse of vMat as well
+	nearWorld4 /= nearWorld4.w;
+	farWorld4 /= farWorld4.w;
+
+	// Convert from View Space to World Space (Inverse View Matrix)
+	glm::vec4 nearWorld4W = glm::inverse(vMat) * nearWorld4;
+	glm::vec4 farWorld4W = glm::inverse(vMat) * farWorld4;
+
+	// ------------------------------------- Inverse Perspective and View Matrices at the same time --------------------
+	// -----------------------------------------------------------------------------------------------------------------
+	//// Unproject both points in one step
+	//glm::mat4 invPV = glm::inverse(pMat * vMat);
+	//glm::vec4 nearWorld4 = invPV * nearPoint;
+	//glm::vec4 farWorld4 = invPV * farPoint;
+
+	//// Perform perspective divide
+	//nearWorld4 /= nearWorld4.w;
+	//farWorld4 /= farWorld4.w;
+
+	// -----------------------------------------------------------------------------------------------------------------
+	// -----------------------------------------------------------------------------------------------------------------
+
+	// Convert to vec3
+	glm::vec3 nearWorld(nearWorld4W);
+	glm::vec3 farWorld(farWorld4W);
+
+	// Create ray
+	glm::vec3 rayDir = glm::normalize(farWorld - nearWorld);
+
+	// Get camera position
+	glm::vec3 cameraPos = cameraController.getPosition();
+
+	// Calculate plane intersection
+	float t = -cameraPos.y / rayDir.y;
+
+	// Compute intersection
+	glm::vec3 intersection = cameraPos + t * rayDir;
+
+	return intersection;
+}
+
+void handleAllMouseActions(GLFWwindow* window)
+{
+
+	// Check current mouse states
+	leftMouseHeld = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
+	rightMouseHeld = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS);
+	middleMouseHeld = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS);
+
+	// Track state changes
+	wasleftMouseHeld = false;
+	wasrightMouseHeld = false;
+	wasmiddleMouseHeld = false;
+
+	// Only calculate intersection if any button is pressed
+	glm::vec3 intersection;
+	bool needIntersection = leftMouseHeld || rightMouseHeld || middleMouseHeld;
+	if (needIntersection) {
+		intersection = getMouseWorldIntersection(window);
+	}
+
+	// Handle left mouse
+	if (leftMouseHeld && !wasleftMouseHeld) {
+		// Just pressed - spawn cube
+		cubeSpawnLocation = intersection;
+		cubeSpawnLocation.y += 0.5f;
+		spawnCube();
+	}
+
+	if (rightMouseHeld)
+	{
+		// Point light toward intersection using your coordinate system
+			// We have to create a vector from our light to our target location. 
+			// We then normalize that vector because if it wasn't, it would cause different lighting behaviors based on different lengths
+		glm::vec3 currentLight = lightLoc;
+		intersection.y = lightLoc.y; // Fixed at lightLoc.y so that the angle of the light doesn't change and stays at the same height as the light position.
+		glm::vec3 target = intersection;
+		glm::vec3 direction = glm::normalize(target - currentLight);
+
+		/*if (direction.x > direction.z)
+		{
+			direction.x = 0.7f;
+		}
+		else if (direction.z > direction.x)
+		{
+			direction.z = 0.7f;
+		}*/
+		cout << "This is the direction: x: " << direction.x << "  y: " << direction.y << "  z: " << direction.z << endl;
+		lightDirection[0] = direction.x;
+		lightDirection[1] = direction.y;
+		lightDirection[2] = direction.z;
+		installLights(renderingProgram2);
+	}
+	
+	// Handle middle mouse
+	if (middleMouseHeld) {
+		lightLoc = vector3(intersection.x, intersection.z, lightLoc.y);
+		currentLightPos = lightLoc;
+
+		//lightVMatrix = glm::lookAt(currentLightPos, vector3(lightDirection[0], lightDirection[2], lightDirection[1]), vector3(0.0f, 1.0f, 0.0f));
+
+		installLights(renderingProgram2);
+	}
+
+	// Update previous states
+	wasleftMouseHeld = leftMouseHeld;
+	wasrightMouseHeld = rightMouseHeld;
+	wasmiddleMouseHeld = middleMouseHeld;
+
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
@@ -262,7 +403,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 			// We have to create a vector from our light to our target location. 
 			// We then normalize that vector because if it wasn't, it would cause different lighting behaviors based on different lengths
 		glm::vec3 currentLight = lightLoc;
-		intersection.y = lightLoc.y; // Fixed at 0.5f so that the angle of the light doesn't change and stays at the same height as the light position.
+		intersection.y = lightLoc.y; // Fixed at lightLoc.y so that the angle of the light doesn't change and stays at the same height as the light position.
 		glm::vec3 target = intersection;
 		glm::vec3 direction = glm::normalize(target - currentLight);
 
@@ -334,8 +475,8 @@ int main(void)
 	if (!glfwInit()) { exit(EXIT_FAILURE); }
 
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+	
 	// Full Screen Monitor Options
 	/*GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
 	const GLFWvidmode* mode = glfwGetVideoMode(primaryMonitor);
@@ -344,7 +485,7 @@ int main(void)
 	GLFWwindow* window = glfwCreateWindow(1600, 1200, "Vector - Puzzle Game", NULL, NULL);
 	glfwMakeContextCurrent(window);
 
-	glfwSetMouseButtonCallback(window, mouse_button_callback);
+	//glfwSetMouseButtonCallback(window, mouse_button_callback);
 
 	if (glewInit() != GLEW_OK) { exit(EXIT_FAILURE); }
 	glfwSwapInterval(1);
@@ -405,6 +546,8 @@ int main(void)
 			static bool rKeyPressed = false;
 			rKeyPressed = false;
 		}
+
+		handleAllMouseActions(window);
 	}
 
 	glfwDestroyWindow(window);
@@ -461,6 +604,7 @@ void init(GLFWwindow* window)
 	setupCamera();
 	//setupVertices();
 	setupShadowBuffers(window);
+	
 
 	// Bias Matrix = converts from light projection space [-1,1] to texture coordinates [0,1]
 	b = glm::mat4
@@ -648,8 +792,20 @@ void display(GLFWwindow* window, double currentTime)
 
 	// Calculate target position from light position + direction
 	glm::vec3 lightTarget = currentLightPos + vector3(lightDirection[0], lightDirection[2], lightDirection[1]);
-	lightVMatrix = glm::lookAt(currentLightPos, lightTarget, vector3(0.0f, 1.0f, 0.0f));
+
+	// Check if light direction is parallel to up vector
+	glm::vec3 lightDir = glm::normalize(lightTarget - currentLightPos);
+	glm::vec3 upVector = vector3(0.0f, 1.0f, 0.0f);
+
+	// If pointing straight up or down, use a different up vector
+	if (abs(glm::dot(lightDir, upVector)) > 0.99f) {
+		upVector = vector3(1.0f, 0.0f, 0.0f);  // Use X-axis as up instead
+	}
+
+	lightVMatrix = glm::lookAt(currentLightPos, lightTarget, upVector);
 	
+	
+
 	// Changed to Orthographic Projection because it's better for directional lighting, but not for positional or spotlight
 		// Using Orthographic projection doesn't allow shadow to change angles when the object is moved or the light moves
 	//float orthoSize = 8.0f;

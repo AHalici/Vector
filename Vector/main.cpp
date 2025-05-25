@@ -140,6 +140,8 @@ void onEscKeyPressed();
 
 void spawnCube();
 
+bool rKeyPressed = false;
+
 void reloadShaders() {
 	std::cout << "Reloading shaders..." << std::endl;
 
@@ -220,6 +222,54 @@ glm::vec3 getMouseWorldIntersection(GLFWwindow* window)
 	glm::vec3 intersection = cameraPos + t * rayDir;
 
 	return intersection;
+}
+
+void moveCubeToCursor(GLFWwindow* window)
+{
+	//if (leftMouseHeld)
+	//{
+	glm::vec3 intersection = getMouseWorldIntersection(window);
+		
+	cubeSpawnLocation = intersection;
+	cubeSpawnLocation.y += lightLoc.y;
+	spawnCube();
+	//}
+}
+
+void directLightToCursor(GLFWwindow* window)
+{
+	glm::vec3 intersection = getMouseWorldIntersection(window);
+	// Point light toward intersection using your coordinate system
+			// We have to create a vector from our light to our target location. 
+			// We then normalize that vector because if it wasn't, it would cause different lighting behaviors based on different lengths
+	glm::vec3 currentLight = lightLoc;
+	intersection.y = lightLoc.y; // Fixed at lightLoc.y so that the angle of the light doesn't change and stays at the same height as the light position.
+	glm::vec3 target = intersection;
+	glm::vec3 direction = glm::normalize(target - currentLight);
+
+	/*if (direction.x > direction.z)
+	{
+		direction.x = 0.7f;
+	}
+	else if (direction.z > direction.x)
+	{
+		direction.z = 0.7f;
+	}*/
+	cout << "This is the direction: x: " << direction.x << "  y: " << direction.y << "  z: " << direction.z << endl;
+	lightDirection[0] = direction.x;
+	lightDirection[1] = direction.y;
+	lightDirection[2] = direction.z;
+	installLights(renderingProgram2);
+}
+
+void moveLightToCursor(GLFWwindow* window)
+{
+	glm::vec3 intersection = getMouseWorldIntersection(window);
+
+	lightLoc = vector3(intersection.x, intersection.z, lightLoc.y);
+	currentLightPos = lightLoc;
+
+	installLights(renderingProgram2);
 }
 
 void handleAllMouseActions(GLFWwindow* window)
@@ -383,7 +433,6 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 
 	// Compute intersection
 	glm::vec3 intersection = cameraPos + t * rayDir;
-	
 
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
 	{ 
@@ -535,20 +584,40 @@ int main(void)
 			// Call the function continuously while Esc is held down
 			onEscKeyPressed();
 		}
-		// ADD THIS: Press R to reload shaders
 		if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
-			static bool rKeyPressed = false;
 			if (!rKeyPressed) {
 				reloadShaders();
 				rKeyPressed = true;
 			}
-		}
-		else {
-			static bool rKeyPressed = false;
+		} else if (glfwGetKey(window, GLFW_KEY_R) == GLFW_RELEASE) {
 			rKeyPressed = false;
 		}
+		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+			// Call the function continuously while left mouse is held down and leftMouseHeld = true
+			//leftMouseHeld = true;
+			moveCubeToCursor(window);
+		}
+		/*} else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE) {
+			leftMouseHeld = false;
+		}*/
 
-		handleAllMouseActions(window);
+		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+			// Call the function continuously while right mouse is held down and rightMouseHeld = true
+			//rightMouseHeld = true;
+			directLightToCursor(window);
+		}
+		//else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_RELEASE) {
+		//	rightMouseHeld = false;
+		//}
+
+		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS) {
+			
+			moveLightToCursor(window);
+		}
+		//else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE) {
+		//	leftMouseHeld = false;
+		//}
+		//handleAllMouseActions(window);
 	}
 
 	glfwDestroyWindow(window);

@@ -37,9 +37,8 @@ public:
 	void rotateLeft(glm::mat4 &rMat);
 
 private:
-	//float X, Y, Z;
 	float movementDistance = 0.1f;
 	float rotationAngle = glm::radians(1.0f);
-	glm::vec3 U, V, N, position, orientation;
+	glm::vec3 U, V, N, position;
 };
 

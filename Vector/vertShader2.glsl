@@ -28,13 +28,13 @@ uniform mat4 p_matrix;
 uniform mat4 norm_matrix;
 uniform mat4 shadowMVP;
 
-layout (binding=0) uniform sampler2DShadow shadowTex;
-layout (binding=1) uniform sampler2DShadow spotlightShadowTex;
+layout (binding=0) uniform sampler2DShadow spotlightShadowTex;
 
 uniform bool isLine;
 uniform bool isRow;
 uniform bool isAxes;
 
+// Grid Lines
 float offsetAmount = 1.0f;
 int row, col;
 
@@ -53,7 +53,7 @@ void main(void)
 
 	//get a vertex normal vector in eye space and output it to the rasterizer for interpolation
 	varyingNormal = (norm_matrix * vec4(vertNormal,1.0)).xyz;
-	
+
 	// calculate the half vector (L+V)
 	varyingHalfVec = (varyingLightDir-varyingVertPos).xyz;
 
@@ -61,14 +61,12 @@ void main(void)
     {
         offsetPosition.x += float(col) * offsetAmount;
         shadow_coord = shadowMVP * vec4(offsetPosition, 1.0);
-
         gl_Position = p_matrix * v_matrix * m_matrix * vec4(offsetPosition, 1.0);
     }
     else if (isRow)
     {
         offsetPosition.z += float(row) * offsetAmount;
         shadow_coord = shadowMVP * vec4(offsetPosition, 1.0);
-
         gl_Position = p_matrix * v_matrix * m_matrix * vec4(offsetPosition, 1.0);
     }
     else

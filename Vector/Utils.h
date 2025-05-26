@@ -46,4 +46,9 @@ public:
 	static float* bronzeDiffuse();
 	static float* bronzeSpecular();
 	static float bronzeShininess();
+
+	static float* lightGreenAmbient();
+	static float* lightGreenDiffuse();
+	static float* lightGreenSpecular();
+	static float lightGreenShininess();
 };

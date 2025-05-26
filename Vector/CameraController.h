@@ -11,7 +11,6 @@ public:
 	CameraController();
 
 	glm::vec3 getPosition();
-	glm::vec3 getOrientation();
 
 	glm::vec3 getU();
 	glm::vec3 getV();

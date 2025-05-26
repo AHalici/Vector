@@ -75,6 +75,12 @@ float* bMatDif = Utils::bronzeDiffuse();
 float* bMatSpe = Utils::bronzeSpecular();
 float bMatShi = Utils::bronzeShininess();
 
+// Light Green
+float* lgMatAmb = Utils::lightGreenAmbient();
+float* lgMatDif = Utils::lightGreenDiffuse();
+float* lgMatSpe = Utils::lightGreenSpecular();
+float lgMatShi = Utils::lightGreenShininess();
+
 float thisAmb[4], thisDif[4], thisSpe[4], matAmb[4], matDif[4], matSpe[4];
 float thisShi, matShi;
 GLuint mambLoc, mdiffLoc, mspecLoc, mshiLoc;
@@ -87,10 +93,11 @@ glm::vec3 cubeLoc, cubeLoc2, cubeSpawnLocation;
 unsigned int planeNumVertices;
 unsigned int lineNumVertices;
 unsigned int cubeNumVertices;
+unsigned int tracklineNumVertices;
 
 // Transformations
 GLuint mLoc, vLoc, pLoc, nLoc, mvLoc;
-glm::mat4 pmMat, vlmMat, hlmMat, amMat, cmMat, vMat, pMat, mvMat, invTrMat;
+glm::mat4 pmMat, vlmMat, hlmMat, tlmMat, amMat, cmMat, vMat, pMat, mvMat, invTrMat;
 
 // Cube motion
 bool goingUp = true;
@@ -145,125 +152,6 @@ void directLightToCursor(GLFWwindow* window);
 void moveLightToCursor(GLFWwindow* window);
 
 bool rKeyPressed = false;
-
-void reloadShaders() {
-	std::cout << "Reloading shaders..." << std::endl;
-
-	// Delete old programs
-	if (renderingProgram1 != 0) glDeleteProgram(renderingProgram1);
-	if (renderingProgram2 != 0) glDeleteProgram(renderingProgram2);
-
-	// Recreate programs
-	renderingProgram1 = Utils::createShaderProgram("vertShader1.glsl", "fragShader1.glsl");
-	renderingProgram2 = Utils::createShaderProgram("vertShader2.glsl", "fragShader2.glsl");
-
-	std::cout << "Shaders reloaded. Program1: " << renderingProgram1 << ", Program2: " << renderingProgram2 << std::endl;
-
-	// Check for compilation errors
-	Utils::checkOpenGLError();
-}
-
-glm::vec3 getMouseWorldIntersection(GLFWwindow* window) 
-{
-	double xpos, ypos;
-	glfwGetCursorPos(window, &xpos, &ypos);
-	glfwGetFramebufferSize(window, &width, &height);
-
-	// Convert to NDC
-	float mouseX = (2.0f * xpos) / width - 1.0f;
-	float mouseY = 1.0f - (2.0f * ypos) / height;
-
-	// Create points at near and far planes: CLIP SPACE???
-	glm::vec4 nearPoint = glm::vec4(mouseX, mouseY, -1.0f, 1.0f);
-	glm::vec4 farPoint = glm::vec4(mouseX, mouseY, 1.0f, 1.0f);
-
-
-	//glm::mat4 invPV = glm::inverse(pMat * vMat); 
-		// Can be done in one step like this. 
-			// The multiplication order for creating the combined matrix is the reverse of the application order, which is usually applying the perspective matrix then the view matrix
-
-	// Inverse Perspective Matrix
-	glm::vec4 nearWorld4 = glm::inverse(pMat) * nearPoint;
-	glm::vec4 farWorld4 = glm::inverse(pMat) * farPoint;
-
-	// Perform perspective divide
-		// Can be done after inverse of vMat as well
-	nearWorld4 /= nearWorld4.w;
-	farWorld4 /= farWorld4.w;
-
-	// Convert from View Space to World Space (Inverse View Matrix)
-	glm::vec4 nearWorld4W = glm::inverse(vMat) * nearWorld4;
-	glm::vec4 farWorld4W = glm::inverse(vMat) * farWorld4;
-
-	// ------------------------------------- Inverse Perspective and View Matrices at the same time --------------------
-	// -----------------------------------------------------------------------------------------------------------------
-	//// Unproject both points in one step
-	//glm::mat4 invPV = glm::inverse(pMat * vMat);
-	//glm::vec4 nearWorld4 = invPV * nearPoint;
-	//glm::vec4 farWorld4 = invPV * farPoint;
-
-	//// Perform perspective divide
-	//nearWorld4 /= nearWorld4.w;
-	//farWorld4 /= farWorld4.w;
-
-	// -----------------------------------------------------------------------------------------------------------------
-	// -----------------------------------------------------------------------------------------------------------------
-
-	// Convert to vec3
-	glm::vec3 nearWorld(nearWorld4W);
-	glm::vec3 farWorld(farWorld4W);
-
-	// Create ray
-	glm::vec3 rayDir = glm::normalize(farWorld - nearWorld);
-
-	// Get camera position
-	glm::vec3 cameraPos = cameraController.getPosition();
-
-	// Calculate plane intersection
-	float t = -cameraPos.y / rayDir.y;
-
-	// Compute intersection
-	glm::vec3 intersection = cameraPos + t * rayDir;
-
-	return intersection;
-}
-
-void moveCubeToCursor(GLFWwindow* window)
-{
-	glm::vec3 intersection = getMouseWorldIntersection(window);
-	cubeSpawnLocation = intersection;
-	cubeSpawnLocation.y += lightLoc.y; // Spawns the cube half way into the plane
-	spawnCube();
-}
-
-void directLightToCursor(GLFWwindow* window)
-{
-	glm::vec3 intersection = getMouseWorldIntersection(window);
-	// Point light toward intersection using your coordinate system
-			// We have to create a vector from our light to our target location. 
-			// We then normalize that vector because if it wasn't, it would cause different lighting behaviors based on different lengths
-	glm::vec3 currentLight = lightLoc;
-	intersection.y = lightLoc.y; // Fixed at lightLoc.y so that the angle of the light doesn't change and stays at the same height as the light position.
-	glm::vec3 target = intersection;
-	glm::vec3 direction = glm::normalize(target - currentLight);
-
-	cout << "This is the direction: x: " << direction.x << "  y: " << direction.y << "  z: " << direction.z << endl;
-	
-	lightDirection[0] = direction.x;
-	lightDirection[1] = direction.y;
-	lightDirection[2] = direction.z;
-	installLights(renderingProgram2);
-}
-
-void moveLightToCursor(GLFWwindow* window)
-{
-	glm::vec3 intersection = getMouseWorldIntersection(window);
-
-	lightLoc = vector3(intersection.x, intersection.z, lightLoc.y);
-	currentLightPos = lightLoc;
-
-	installLights(renderingProgram2);
-}
 
 //void handleAllMouseActions(GLFWwindow* window)
 //{
@@ -518,6 +406,17 @@ void setupVertices()
 		0.0f, 0.0f, 10.0f
 	};
 
+	float tracklineVertexPositions[18] =
+	{
+		0.0f, 0.0f, 0.0f,
+		0.2f, 0.0f, 1.0f,
+		0.0f, 0.0f, 1.0f,
+		
+		0.0f, 0.0f, 0.0f,
+		0.2f, 0.0f, 0.0f,
+		0.2f, 0.0f, 1.0f,
+	};
+
 	float cubeVertexPositions[108] = {
 		-1.0f,  1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f, -1.0f, -1.0f,
 		1.0f, -1.0f, -1.0f, 1.0f,  1.0f, -1.0f, -1.0f,  1.0f, -1.0f,
@@ -578,6 +477,7 @@ void setupVertices()
 	planeNumVertices = 6;
 	lineNumVertices = 2;
 	cubeNumVertices = 36;
+	tracklineNumVertices = 6;
 
 	// Init VAO and VBO 
 	glGenVertexArrays(1, vao);
@@ -610,6 +510,9 @@ void setupVertices()
 
 	glBindBuffer(GL_ARRAY_BUFFER, vbo[8]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(cubeNormals), cubeNormals, GL_STATIC_DRAW);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[9]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(tracklineVertexPositions), tracklineVertexPositions, GL_STATIC_DRAW);
 }
 
 void display(GLFWwindow* window, double currentTime)
@@ -932,6 +835,31 @@ void passOne(double time)
 	glDepthFunc(GL_LEQUAL);
 	glDrawArrays(GL_TRIANGLES, 0, planeNumVertices);
 
+
+
+
+
+
+
+
+
+
+	tlmMat = glm::translate(glm::mat4(1.0f), vector3(1.0f, 0.0f, 1.0f));
+	shadowMVP1 = lightPMatrix * lightVMatrix * tlmMat;
+	glUniformMatrix4fv(sLoc1, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
+
+	// Bind vertex attribute to vbo[0] values and enable vertex attribute
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[9]);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	glEnable(GL_CULL_FACE);
+	glFrontFace(GL_CCW);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	glDrawArrays(GL_TRIANGLES, 0, tracklineNumVertices);
+
+
 	// ----------------------------------------- Vertical Lines (Blue) -----------------------------------------
 
 	//isLine = true;
@@ -1210,7 +1138,7 @@ void passTwo(double time)
 
 	glBindBuffer(GL_ARRAY_BUFFER, vbo[6]);
 	glVertexAttribPointer(1, 3, GL_FLOAT, false, 0, 0);
-	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
 
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
@@ -1219,6 +1147,52 @@ void passTwo(double time)
 
 	isLine = false;
 	glUniform1i(isLineLoc2, isLine);
+
+
+	// ----------------------------------------- Track Lines (Green) -----------------------------------------
+
+	thisAmb[0] = lgMatAmb[0]; thisAmb[1] = lgMatAmb[1]; thisAmb[2] = lgMatAmb[2];  // light green
+	thisDif[0] = lgMatDif[0]; thisDif[1] = lgMatDif[1]; thisDif[2] = lgMatDif[2];
+	thisSpe[0] = lgMatSpe[0]; thisSpe[1] = lgMatSpe[1]; thisSpe[2] = lgMatSpe[2];
+	thisShi = lgMatShi;
+
+	// Set VIEW matrix
+	updateCamera();
+	vMat = cameraRMat * cameraTMat;
+
+	currentLightPos = lightLoc;
+	installLights(renderingProgram2);
+
+	tlmMat = glm::translate(glm::mat4(1.0f), vector3(1.0f, 0.0f, 0.01f)) * glm::scale(glm::mat4(1.0f), vector3(1.0f, 5.0f, 1.0f));
+
+	invTrMat = glm::transpose(glm::inverse(tlmMat));
+	shadowMVP2 = b * lightPMatrix * lightVMatrix * tlmMat;
+
+	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(tlmMat));
+	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
+	glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+	glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
+	glUniformMatrix4fv(sLoc2, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[9]);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[5]);
+	glVertexAttribPointer(1, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(1);
+
+
+	/*glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);*/
+
+	glEnable(GL_CULL_FACE);
+	glFrontFace(GL_CCW);
+	//glCullFace(GL_BACK);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+
+	glDrawArrays(GL_TRIANGLES, 0, tracklineNumVertices);
 
 	// ----------------------------------------- Horizontal Lines (Green) -----------------------------------------
 	
@@ -1530,6 +1504,125 @@ void setupShadowBuffers(GLFWwindow* window)
 	// may reduce shadow border artifacts
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+}
+
+void reloadShaders() {
+	std::cout << "Reloading shaders..." << std::endl;
+
+	// Delete old programs
+	if (renderingProgram1 != 0) glDeleteProgram(renderingProgram1);
+	if (renderingProgram2 != 0) glDeleteProgram(renderingProgram2);
+
+	// Recreate programs
+	renderingProgram1 = Utils::createShaderProgram("vertShader1.glsl", "fragShader1.glsl");
+	renderingProgram2 = Utils::createShaderProgram("vertShader2.glsl", "fragShader2.glsl");
+
+	std::cout << "Shaders reloaded. Program1: " << renderingProgram1 << ", Program2: " << renderingProgram2 << std::endl;
+
+	// Check for compilation errors
+	Utils::checkOpenGLError();
+}
+
+glm::vec3 getMouseWorldIntersection(GLFWwindow* window)
+{
+	double xpos, ypos;
+	glfwGetCursorPos(window, &xpos, &ypos);
+	glfwGetFramebufferSize(window, &width, &height);
+
+	// Convert to NDC
+	float mouseX = (2.0f * xpos) / width - 1.0f;
+	float mouseY = 1.0f - (2.0f * ypos) / height;
+
+	// Create points at near and far planes: CLIP SPACE???
+	glm::vec4 nearPoint = glm::vec4(mouseX, mouseY, -1.0f, 1.0f);
+	glm::vec4 farPoint = glm::vec4(mouseX, mouseY, 1.0f, 1.0f);
+
+
+	//glm::mat4 invPV = glm::inverse(pMat * vMat); 
+		// Can be done in one step like this. 
+			// The multiplication order for creating the combined matrix is the reverse of the application order, which is usually applying the perspective matrix then the view matrix
+
+	// Inverse Perspective Matrix
+	glm::vec4 nearWorld4 = glm::inverse(pMat) * nearPoint;
+	glm::vec4 farWorld4 = glm::inverse(pMat) * farPoint;
+
+	// Perform perspective divide
+		// Can be done after inverse of vMat as well
+	nearWorld4 /= nearWorld4.w;
+	farWorld4 /= farWorld4.w;
+
+	// Convert from View Space to World Space (Inverse View Matrix)
+	glm::vec4 nearWorld4W = glm::inverse(vMat) * nearWorld4;
+	glm::vec4 farWorld4W = glm::inverse(vMat) * farWorld4;
+
+	// ------------------------------------- Inverse Perspective and View Matrices at the same time --------------------
+	// -----------------------------------------------------------------------------------------------------------------
+	//// Unproject both points in one step
+	//glm::mat4 invPV = glm::inverse(pMat * vMat);
+	//glm::vec4 nearWorld4 = invPV * nearPoint;
+	//glm::vec4 farWorld4 = invPV * farPoint;
+
+	//// Perform perspective divide
+	//nearWorld4 /= nearWorld4.w;
+	//farWorld4 /= farWorld4.w;
+
+	// -----------------------------------------------------------------------------------------------------------------
+	// -----------------------------------------------------------------------------------------------------------------
+
+	// Convert to vec3
+	glm::vec3 nearWorld(nearWorld4W);
+	glm::vec3 farWorld(farWorld4W);
+
+	// Create ray
+	glm::vec3 rayDir = glm::normalize(farWorld - nearWorld);
+
+	// Get camera position
+	glm::vec3 cameraPos = cameraController.getPosition();
+
+	// Calculate plane intersection
+	float t = -cameraPos.y / rayDir.y;
+
+	// Compute intersection
+	glm::vec3 intersection = cameraPos + t * rayDir;
+
+	return intersection;
+}
+
+void moveCubeToCursor(GLFWwindow* window)
+{
+	glm::vec3 intersection = getMouseWorldIntersection(window);
+	cubeSpawnLocation = intersection;
+	cubeSpawnLocation.y += lightLoc.y; // Spawns the cube half way into the plane
+	spawnCube();
+}
+
+void directLightToCursor(GLFWwindow* window)
+{
+	glm::vec3 intersection = getMouseWorldIntersection(window);
+	// Point light toward intersection using your coordinate system
+			// We have to create a vector from our light to our target location. 
+			// We then normalize that vector because if it wasn't, it would cause different lighting behaviors based on different lengths
+	glm::vec3 currentLight = lightLoc;
+	intersection.y = lightLoc.y; // Fixed at lightLoc.y so that the angle of the light doesn't change and stays at the same height as the light position.
+	glm::vec3 target = intersection;
+	glm::vec3 direction = glm::normalize(target - currentLight);
+
+	cout << "This is the direction: x: " << direction.x << "  y: " << direction.y << "  z: " << direction.z << endl;
+
+	lightDirection[0] = direction.x;
+	lightDirection[1] = direction.y;
+	lightDirection[2] = direction.z;
+	installLights(renderingProgram2);
+}
+
+void moveLightToCursor(GLFWwindow* window)
+{
+	glm::vec3 intersection = getMouseWorldIntersection(window);
+
+	lightLoc = vector3(intersection.x, intersection.z, lightLoc.y);
+	currentLightPos = lightLoc;
+
+	installLights(renderingProgram2);
 }
 
 void spawnCube()

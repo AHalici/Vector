@@ -33,11 +33,12 @@ uniform bool isRow;
 uniform bool isAxes;
 
 float shadowfactor = 0.0;
+vec4 lightedColor;
 
 // Attenuation (constant, linear, quadratic)
 float kc = 1.0;
 float kl = 0.09;
-float kq = 0.032;
+float kq = 0.00032;
 
 float lookup(float x, float y)
 {  	float t = textureProj(spotlightShadowTex, shadow_coord + vec4(x * 0.001 * shadow_coord.w,
@@ -109,13 +110,11 @@ void main(void)
 
 	vec4 shadowColor = globalAmbient * material.ambient
 				+ light.ambient * material.ambient * attenuation;
-	
-	vec4 lightedColor;
 
 	// Light Max Distance 
 	if (distance < 8.0f)
 	{
-		lightedColor = light.diffuse * material.diffuse * max(dot(L,N),0.0)
+		lightedColor = light.diffuse * material.diffuse * max(dot(L,N),0.0) // Removed to remove the circle of light at center
 				+ light.specular * material.specular
 				* pow(max(dot(H,N),0.0),material.shininess);
 

@@ -3,6 +3,7 @@
 #include <SOIL2/SOIL2.h>
 #include <string>
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <cmath>
 #include <glm/glm.hpp>
@@ -87,7 +88,12 @@ GLuint mambLoc, mdiffLoc, mspecLoc, mshiLoc;
 
 // Object Locations
 float planeLocX, planeLocY, planeLocZ;
-glm::vec3 cubeLoc, cubeLoc2, cubeSpawnLocation;
+glm::vec3 cubeLoc, cubeLoc2, cubeSpawnLocation, cubeDestination;
+unsigned int numberOfTrackPoints, currentTrackPoint;
+float totalDistanceToTrackPoint, distanceRemaining;
+
+
+glm::vec3 trackPoints[3];
 
 // Object number of vertices
 unsigned int planeNumVertices;
@@ -102,7 +108,10 @@ glm::mat4 pmMat, vlmMat, hlmMat, tlmMat, amMat, cmMat, vMat, pMat, mvMat, invTrM
 // Cube motion
 bool goingUp = true;
 bool goingRight = true;
-float cubeSpeed = 8.0f;
+bool goingXDirection = false;
+bool goingYDirection = false;
+bool distanceSet = false;
+float cubeSpeed = 2.0f;
 
 // Tools
 float yBounds, xBounds;
@@ -144,6 +153,10 @@ void onQKeyPressed();
 void onEscKeyPressed();
 
 void spawnCube();
+void setupTrackPoints();
+void calculatePath();
+void moveCube();
+
 void reloadShaders();
 
 glm::vec3 getMouseWorldIntersection(GLFWwindow* window);
@@ -337,6 +350,7 @@ void init(GLFWwindow* window)
 
 	// Object Location Init
 	planeLocX = 0.0f; planeLocY = 0.0f; planeLocZ = 0.0f;
+	cubeLoc = vector3(1.0f, 0.0f, 0.5f);
 
 	mLoc = glGetUniformLocation(renderingProgram2, "m_matrix");
 	vLoc = glGetUniformLocation(renderingProgram2, "v_matrix");
@@ -358,6 +372,7 @@ void init(GLFWwindow* window)
 	setupCamera();
 	setupShadowBuffers(window);
 	
+	setupTrackPoints();
 
 	// Bias Matrix = converts from light projection space [-1,1] to texture coordinates [0,1]
 	b = glm::mat4
@@ -367,6 +382,140 @@ void init(GLFWwindow* window)
 		0.0f, 0.0f, 0.5f, 0.0f,
 		0.5f, 0.5f, 0.5f, 1.0f
 	);
+}
+
+void setupTrackPoints()
+{
+	currentTrackPoint = 0;
+	numberOfTrackPoints = 3;
+	trackPoints[0] = vector3(1.0f, 0.0f, 1.0f);
+	trackPoints[1] = vector3(1.0f, 5.0f, 1.0f);
+	trackPoints[2] = vector3(5.0f, 5.0f, 1.0f);
+	
+}
+
+void calculatePath()
+{
+	float xDiff = 0;
+	float yDiff = 0;
+
+	if (currentTrackPoint < numberOfTrackPoints - 1)
+	{
+		cubeDestination = trackPoints[currentTrackPoint + 1];
+		xDiff = cubeDestination.x - trackPoints[currentTrackPoint].x;
+		yDiff = cubeDestination.z - trackPoints[currentTrackPoint].z;
+
+		cout << "\n+------ TRACK POINT ANALYSIS ------+" << endl;
+		cout << "| Current Point [" << currentTrackPoint << "]:            |" << endl;
+		cout << "|   X: " << setw(8) << fixed << setprecision(2) << trackPoints[currentTrackPoint].x << "                 |" << endl;
+		cout << "|   Y: " << setw(8) << fixed << setprecision(2) << trackPoints[currentTrackPoint].z << "                 |" << endl;
+		cout << "+-------------------------------+" << endl;
+		cout << "| Destination Point [" << currentTrackPoint + 1 << "]:       |" << endl;
+		cout << "|   X: " << setw(8) << fixed << setprecision(2) << cubeDestination.x << "                 |" << endl;
+		cout << "|   Y: " << setw(8) << fixed << setprecision(2) << cubeDestination.z << "                 |" << endl;
+		cout << "+-------------------------------+\n" << endl;
+
+		if (xDiff != 0)
+		{
+			cout << ">> MOVEMENT: X-Direction" << endl;
+			cout << "   X Difference: " << setw(8) << fixed << setprecision(2) << xDiff << endl;
+			cout << "   Y Difference: " << setw(8) << fixed << setprecision(2) << yDiff << endl;
+			cout << "   Status: Moving horizontally\n" << endl;
+
+			totalDistanceToTrackPoint = xDiff;
+			goingXDirection = true;
+			goingYDirection = false;
+		}
+		else if (yDiff != 0)
+		{
+			cout << ">> MOVEMENT: Y-Direction" << endl;
+			cout << "   X Difference: " << setw(8) << fixed << setprecision(2) << xDiff << endl;
+			cout << "   Y Difference: " << setw(8) << fixed << setprecision(2) << yDiff << endl;
+			cout << "   Status: Moving vertically\n" << endl;
+
+			totalDistanceToTrackPoint = yDiff;
+			goingYDirection = true;
+			goingXDirection = false;
+		}
+
+		if (!distanceSet)
+		{
+			cout << "next path" << endl;
+			distanceRemaining = totalDistanceToTrackPoint;
+			distanceSet = true;
+		}
+
+		cout << "== SUMMARY ==" << endl;
+		cout << "   Current Track Point: " << currentTrackPoint << endl;
+		cout << "   Distance Remaining:  " << fixed << setprecision(2) << totalDistanceToTrackPoint << endl;
+		cout << "======================================\n" << endl;
+	}
+
+
+
+	/*if (currentTrackPoint < numberOfTrackPoints - 1)
+	{
+		cubeDestination = trackPoints[currentTrackPoint + 1];
+		xDiff = cubeDestination.x - trackPoints[currentTrackPoint].x;
+		yDiff = cubeDestination.z - trackPoints[currentTrackPoint].z;
+
+		cout << "This is the current track point x: " << trackPoints[currentTrackPoint].x << endl;
+		cout << "This is the current track point y: " << trackPoints[currentTrackPoint].z << endl;
+		cout << "--------------------------------------------------------------------------------" << endl;
+		cout << "This is the cube destination point x: " << cubeDestination.x << endl;
+		cout << "This is the cube destination point y: " << cubeDestination.z << endl << endl << endl;
+	}
+
+	if (xDiff != 0)
+	{
+		cout << "This is xDiff ---> " << xDiff << endl;
+		cout << "This is yDiff ---> " << yDiff << endl;
+		cout << "+++++++++++++++++++++++++++++" << endl << endl << endl;
+		totalDistanceToTrackPoint = xDiff;
+		goingXDirection = true;
+		goingYDirection = false;
+	}
+	else if (yDiff != 0)
+	{
+
+		cout << "This is xDiff (y) ---> " << xDiff << endl;
+		cout << "This is yDiff (y)---> " << yDiff << endl;
+		cout << "+++++++++++++++++++++++++++++" << endl << endl << endl;
+		totalDistanceToTrackPoint = yDiff;
+		goingYDirection = true;
+		goingXDirection = false;
+	}
+
+	cout << "This is calculate path end   " << currentTrackPoint << endl;
+	cout << "This is distance to track point ========   " << totalDistanceToTrackPoint << endl;
+	return totalDistanceToTrackPoint;*/
+}
+
+void moveCube()
+{
+	if (distanceRemaining > 0.0f)
+	{
+		if (goingXDirection)
+		{
+			cubeLoc.x += timePassed * cubeSpeed;
+			distanceRemaining -= timePassed * cubeSpeed;
+			cout << ">> DISTANCE REMAINING MOTHERFUCKERRRRRR: X-Direction" << endl;
+			cout << "   X Difference: " << setw(8) << fixed << setprecision(2) << distanceRemaining << endl;
+
+		}
+		else if (goingYDirection)
+		{
+			cubeLoc.z += timePassed * cubeSpeed;
+			distanceRemaining -= timePassed * cubeSpeed;
+			cout << ">> DISTANCE REMAINING MOTHERFUCKERRRRRR: Y-Direction" << endl;
+			cout << "   Y Difference: " << setw(8) << fixed << setprecision(2) << distanceRemaining << endl;
+		}
+	}
+	if (distanceRemaining <= 0)
+	{
+		currentTrackPoint++;
+		distanceSet = false;
+	}
 }
 
 void setupVertices()
@@ -525,7 +674,7 @@ void display(GLFWwindow* window, double currentTime)
 	timePassed = currentTime - previousTime;
 	previousTime = currentTime;
 
-	if (cubeLoc.z > 9.0f)
+	/*if (cubeLoc.z > 9.0f)
 		goingUp = false;
 	else if (cubeLoc.z < -9.0f)
 		goingUp = true;
@@ -533,7 +682,7 @@ void display(GLFWwindow* window, double currentTime)
 	if (cubeLoc2.x > 9.0f)
 		goingRight = false;
 	else if (cubeLoc2.x < -9.0f)
-		goingRight = true;
+		goingRight = true;*/
 		
 
 	if (goingUp)
@@ -546,7 +695,7 @@ void display(GLFWwindow* window, double currentTime)
 	else if (!goingRight)
 		xBounds -= timePassed;
 
-	cubeLoc = vector3(2.0f, yBounds * cubeSpeed, 3.0f);
+	//cubeLoc = vector3(2.0f, yBounds * cubeSpeed, 3.0f);
 	cubeLoc2 = vector3(xBounds * cubeSpeed, -2.0f, 3.0f);
 
 	// Calculate target position from light position + direction
@@ -571,6 +720,9 @@ void display(GLFWwindow* window, double currentTime)
 	//float orthoSize = 8.0f;
 	//lightPMatrix = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize + 5.0f, 1.0f, 50.0f);
 
+
+	calculatePath();
+	moveCube();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, shadowBuffer);
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadowTex, 0);
@@ -785,20 +937,20 @@ void passOne(double time)
 	glDepthFunc(GL_LEQUAL);
 	glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
 
-	cmMat = glm::translate(glm::mat4(1.0f), cubeLoc2) * glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
-	shadowMVP1 = lightPMatrix * lightVMatrix * cmMat;
-	glUniformMatrix4fv(sLoc1, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
+	//cmMat = glm::translate(glm::mat4(1.0f), cubeLoc2) * glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
+	//shadowMVP1 = lightPMatrix * lightVMatrix * cmMat;
+	//glUniformMatrix4fv(sLoc1, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
 
-	// Bind vertex attribute to vbo[7] values and enable vertex attribute
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[7]);
-	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
-	glEnableVertexAttribArray(0);
+	//// Bind vertex attribute to vbo[7] values and enable vertex attribute
+	//glBindBuffer(GL_ARRAY_BUFFER, vbo[7]);
+	//glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	//glEnableVertexAttribArray(0);
 
-	glEnable(GL_CULL_FACE);
-	glFrontFace(GL_CCW);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
-	glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
+	//glEnable(GL_CULL_FACE);
+	//glFrontFace(GL_CCW);
+	//glEnable(GL_DEPTH_TEST);
+	//glDepthFunc(GL_LEQUAL);
+	//glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
 
 	if (spawnInstancedCube)
 	{
@@ -836,15 +988,10 @@ void passOne(double time)
 	glDrawArrays(GL_TRIANGLES, 0, planeNumVertices);
 
 
+	//// ----------------------------------------- Track Lines (Green) -----------------------------------------
 
-
-
-
-
-
-
-
-	tlmMat = glm::translate(glm::mat4(1.0f), vector3(1.0f, 0.0f, 1.0f));
+	// Track line #1
+	tlmMat = glm::translate(glm::mat4(1.0f), vector3(1.0f, 0.0f, 0.01f)) * glm::scale(glm::mat4(1.0f), vector3(1.0f, 5.0f, 1.0f));
 	shadowMVP1 = lightPMatrix * lightVMatrix * tlmMat;
 	glUniformMatrix4fv(sLoc1, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
 
@@ -859,6 +1006,23 @@ void passOne(double time)
 	glDepthFunc(GL_LEQUAL);
 	glDrawArrays(GL_TRIANGLES, 0, tracklineNumVertices);
 
+
+	// Track line #2
+	tlmMat = glm::translate(glm::mat4(1.0f), vector3(1.0f, 5.0f, 0.01f))
+		   * glm::rotate(glm::mat4(1.0f), toRadians(90.0f), vector3(0.0f, 0.0f, 1.0f))
+		   * glm::scale(glm::mat4(1.0f), vector3(1.0f, 5.0f, 1.0f)); // Since it is rotated, to stretch it in the x-direction, we scale the y value	shadowMVP1 = lightPMatrix * lightVMatrix * tlmMat;
+	glUniformMatrix4fv(sLoc1, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
+
+	// Bind vertex attribute to vbo[0] values and enable vertex attribute
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[9]);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	glEnable(GL_CULL_FACE);
+	glFrontFace(GL_CCW);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	glDrawArrays(GL_TRIANGLES, 0, tracklineNumVertices);
 
 	// ----------------------------------------- Vertical Lines (Blue) -----------------------------------------
 
@@ -978,44 +1142,44 @@ void passTwo(double time)
 
 
 
-	thisAmb[0] = bMatAmb[0]; thisAmb[1] = bMatAmb[1]; thisAmb[2] = bMatAmb[2];  // bronze
-	thisDif[0] = bMatDif[0]; thisDif[1] = bMatDif[1]; thisDif[2] = bMatDif[2];
-	thisSpe[0] = bMatSpe[0]; thisSpe[1] = bMatSpe[1]; thisSpe[2] = bMatSpe[2];
-	thisShi = bMatShi;
+	//thisAmb[0] = bMatAmb[0]; thisAmb[1] = bMatAmb[1]; thisAmb[2] = bMatAmb[2];  // bronze
+	//thisDif[0] = bMatDif[0]; thisDif[1] = bMatDif[1]; thisDif[2] = bMatDif[2];
+	//thisSpe[0] = bMatSpe[0]; thisSpe[1] = bMatSpe[1]; thisSpe[2] = bMatSpe[2];
+	//thisShi = bMatShi;
 
-	// Set VIEW matrix
-	updateCamera();
-	vMat = cameraRMat * cameraTMat;
+	//// Set VIEW matrix
+	//updateCamera();
+	//vMat = cameraRMat * cameraTMat;
 
-	currentLightPos = lightLoc;
-	installLights(renderingProgram2);
+	//currentLightPos = lightLoc;
+	//installLights(renderingProgram2);
 
-	cmMat = glm::translate(glm::mat4(1.0f), cubeLoc2) * glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
-	
-	invTrMat = glm::transpose(glm::inverse(cmMat));
-	shadowMVP2 = b * lightPMatrix * lightVMatrix * cmMat;
+	//cmMat = glm::translate(glm::mat4(1.0f), cubeLoc2) * glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
+	//
+	//invTrMat = glm::transpose(glm::inverse(cmMat));
+	//shadowMVP2 = b * lightPMatrix * lightVMatrix * cmMat;
 
-	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(cmMat));
-	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
-	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
-	glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
-	glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
-	glUniformMatrix4fv(sLoc2, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+	//glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(cmMat));
+	//glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
+	////glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+	//glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+	//glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
+	//glUniformMatrix4fv(sLoc2, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
 
-	// Cube VERTICES
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[7]);
-	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
-	glEnableVertexAttribArray(0);
+	//// Cube VERTICES
+	//glBindBuffer(GL_ARRAY_BUFFER, vbo[7]);
+	//glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	//glEnableVertexAttribArray(0);
 
-	// Cube NORMALS
-	glBindBuffer(GL_ARRAY_BUFFER, vbo[8]);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(1);
+	//// Cube NORMALS
+	//glBindBuffer(GL_ARRAY_BUFFER, vbo[8]);
+	//glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	//glEnableVertexAttribArray(1);
 
-	glDisable(GL_CULL_FACE);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
-	glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
+	//glDisable(GL_CULL_FACE);
+	//glEnable(GL_DEPTH_TEST);
+	//glDepthFunc(GL_LEQUAL);
+	//glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
 
 
 	if (spawnInstancedCube)
@@ -1151,6 +1315,7 @@ void passTwo(double time)
 
 	// ----------------------------------------- Track Lines (Green) -----------------------------------------
 
+	// Track line #1
 	thisAmb[0] = lgMatAmb[0]; thisAmb[1] = lgMatAmb[1]; thisAmb[2] = lgMatAmb[2];  // light green
 	thisDif[0] = lgMatDif[0]; thisDif[1] = lgMatDif[1]; thisDif[2] = lgMatDif[2];
 	thisSpe[0] = lgMatSpe[0]; thisSpe[1] = lgMatSpe[1]; thisSpe[2] = lgMatSpe[2];
@@ -1164,6 +1329,53 @@ void passTwo(double time)
 	installLights(renderingProgram2);
 
 	tlmMat = glm::translate(glm::mat4(1.0f), vector3(1.0f, 0.0f, 0.01f)) * glm::scale(glm::mat4(1.0f), vector3(1.0f, 5.0f, 1.0f));
+
+	invTrMat = glm::transpose(glm::inverse(tlmMat));
+	shadowMVP2 = b * lightPMatrix * lightVMatrix * tlmMat;
+
+	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(tlmMat));
+	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
+	glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+	glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
+	glUniformMatrix4fv(sLoc2, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[9]);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[5]);
+	glVertexAttribPointer(1, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(1);
+
+
+	/*glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);*/
+
+	glEnable(GL_CULL_FACE);
+	glFrontFace(GL_CCW);
+	//glCullFace(GL_BACK);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+
+	glDrawArrays(GL_TRIANGLES, 0, tracklineNumVertices);
+
+
+	// Track line #2
+	thisAmb[0] = lgMatAmb[0]; thisAmb[1] = lgMatAmb[1]; thisAmb[2] = lgMatAmb[2];  // light green
+	thisDif[0] = lgMatDif[0]; thisDif[1] = lgMatDif[1]; thisDif[2] = lgMatDif[2];
+	thisSpe[0] = lgMatSpe[0]; thisSpe[1] = lgMatSpe[1]; thisSpe[2] = lgMatSpe[2];
+	thisShi = lgMatShi;
+
+	// Set VIEW matrix
+	updateCamera();
+	vMat = cameraRMat * cameraTMat;
+
+	currentLightPos = lightLoc;
+	installLights(renderingProgram2);
+
+	tlmMat = glm::translate(glm::mat4(1.0f), vector3(1.0f, 5.0f, 0.01f)) 
+		   * glm::rotate(glm::mat4(1.0f), toRadians(90.0f), vector3(0.0f, 0.0f, 1.0f)) 
+		   * glm::scale(glm::mat4(1.0f), vector3(1.0f, 5.0f, 1.0f)); // Since it is rotated, to stretch it in the x-direction, we scale the y value
 
 	invTrMat = glm::transpose(glm::inverse(tlmMat));
 	shadowMVP2 = b * lightPMatrix * lightVMatrix * tlmMat;

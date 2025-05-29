@@ -397,27 +397,14 @@ void init(GLFWwindow* window)
 void setupTrackPoints()
 {
 	currentTrackPoint = 0;
+	numberOfTrackPoints = 3;
 
 	// Start position
-	trackPoints.push_back(vector3(0.0f, 0.0f, 1.0f));
+	trackPoints.push_back(vector3(1.0f, 0.0f, 1.0f));
 	// Initial straight segment
-	trackPoints.push_back(vector3(3.0f, 0.0f, 1.0f));
+	trackPoints.push_back(vector3(1.0f, 5.0f, 1.0f));
 	// Diagonal climb
-	trackPoints.push_back(vector3(6.0f, 3.0f, 1.0f));
-	// Sharp turn (tests direction changes)
-	trackPoints.push_back(vector3(6.0f, 6.0f, 1.0f));
-	// Long diagonal descent 
-	trackPoints.push_back(vector3(2.0f, 8.0f, 1.0f));
-	// Zigzag pattern (tests rapid direction changes)
-	trackPoints.push_back(vector3(-1.0f, 7.0f, 1.0f));
-	trackPoints.push_back(vector3(1.0f, 9.0f, 1.0f));
-	trackPoints.push_back(vector3(-2.0f, 10.0f, 1.0f));
-	// Wide arc simulation (several short segments)
-	trackPoints.push_back(vector3(0.0f, 12.0f, 1.0f));
-	trackPoints.push_back(vector3(4.0f, 13.0f, 1.0f));
-	trackPoints.push_back(vector3(7.0f, 11.0f, 1.0f));
-	// Final destination
-	trackPoints.push_back(vector3(8.0f, 8.0f, 1.0f));
+	trackPoints.push_back(vector3(4.5f, 8.5f, 1.0f));
 	
 }
 

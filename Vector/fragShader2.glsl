@@ -132,8 +132,6 @@ void main(void)
 
 		lightedColor =  ((15 * lightedColor) * (attenuation)); // Multiplying by 15 to increase
 	}
-
-	//fragColor = vec4(currentDepth, shadowMapDepth, 0.0f, 1.0f);
 	
 	fragColor = vec4((shadowColor.xyz + intensityFactor * shadowfactor * lightedColor.xyz),1.0);
 

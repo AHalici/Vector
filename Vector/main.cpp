@@ -89,11 +89,12 @@ GLuint mambLoc, mdiffLoc, mspecLoc, mshiLoc;
 // Object Locations
 float planeLocX, planeLocY, planeLocZ;
 glm::vec3 cubeLoc, cubeLoc2, cubeSpawnLocation, cubeDestination;
+
+// Track
 unsigned int numberOfTrackPoints, currentTrackPoint;
 float totalDistanceToTrackPoint, distanceRemaining;
-
-
-glm::vec3 trackPoints[3];
+vector<glm::vec3> trackPoints;
+glm::vec3 trackStart, trackEnd, displacement, trackDirection;
 
 // Object number of vertices
 unsigned int planeNumVertices;
@@ -111,7 +112,8 @@ bool goingRight = true;
 bool goingXDirection = false;
 bool goingYDirection = false;
 bool distanceSet = false;
-float cubeSpeed = 0.5f;
+float cubeSpeed = 2.0f;
+float moveAmount;
 
 // Tools
 float yBounds, xBounds;
@@ -120,7 +122,8 @@ float previousTime;
 bool isLine = false;
 bool isRow = false;
 bool isAxes = false;
-GLuint isLineLoc1, isRowLoc1, isAxesLoc1, isLineLoc2, isRowLoc2, isAxesLoc2;
+bool isCube = false;
+GLuint isLineLoc1, isRowLoc1, isAxesLoc1, isLineLoc2, isRowLoc2, isAxesLoc2, isCubeLoc, ssbo; // ssbo is a buffer that stores our boolean from fragShader2
 
 // Mouse
 double mouseX, mouseY;
@@ -154,10 +157,15 @@ void onEscKeyPressed();
 
 void spawnCube();
 void setupTrackPoints();
+
+void setupSSBO();
+bool readBoolean();
+
 void calculatePath();
 void moveCube();
 
 void reloadShaders();
+
 
 glm::vec3 getMouseWorldIntersection(GLFWwindow* window);
 void moveCubeToCursor(GLFWwindow* window);
@@ -359,6 +367,7 @@ void init(GLFWwindow* window)
 	isLineLoc2 = glGetUniformLocation(renderingProgram2, "isLine");
 	isRowLoc2 = glGetUniformLocation(renderingProgram2, "isRow");
 	isAxesLoc2 = glGetUniformLocation(renderingProgram2, "isAxes");
+	isCubeLoc = glGetUniformLocation(renderingProgram2, "isCube");
 	nLoc = glGetUniformLocation(renderingProgram2, "norm_matrix");
 	sLoc2 = glGetUniformLocation(renderingProgram2, "shadowMVP");
 
@@ -373,6 +382,7 @@ void init(GLFWwindow* window)
 	setupShadowBuffers(window);
 	
 	setupTrackPoints();
+	setupSSBO();
 
 	// Bias Matrix = converts from light projection space [-1,1] to texture coordinates [0,1]
 	b = glm::mat4
@@ -387,10 +397,27 @@ void init(GLFWwindow* window)
 void setupTrackPoints()
 {
 	currentTrackPoint = 0;
-	numberOfTrackPoints = 3;
-	trackPoints[0] = vector3(1.0f, 0.0f, 1.0f);
-	trackPoints[1] = vector3(1.0f, 5.0f, 1.0f);
-	trackPoints[2] = vector3(5.0f, 5.0f, 1.0f);
+
+	// Start position
+	trackPoints.push_back(vector3(0.0f, 0.0f, 1.0f));
+	// Initial straight segment
+	trackPoints.push_back(vector3(3.0f, 0.0f, 1.0f));
+	// Diagonal climb
+	trackPoints.push_back(vector3(6.0f, 3.0f, 1.0f));
+	// Sharp turn (tests direction changes)
+	trackPoints.push_back(vector3(6.0f, 6.0f, 1.0f));
+	// Long diagonal descent 
+	trackPoints.push_back(vector3(2.0f, 8.0f, 1.0f));
+	// Zigzag pattern (tests rapid direction changes)
+	trackPoints.push_back(vector3(-1.0f, 7.0f, 1.0f));
+	trackPoints.push_back(vector3(1.0f, 9.0f, 1.0f));
+	trackPoints.push_back(vector3(-2.0f, 10.0f, 1.0f));
+	// Wide arc simulation (several short segments)
+	trackPoints.push_back(vector3(0.0f, 12.0f, 1.0f));
+	trackPoints.push_back(vector3(4.0f, 13.0f, 1.0f));
+	trackPoints.push_back(vector3(7.0f, 11.0f, 1.0f));
+	// Final destination
+	trackPoints.push_back(vector3(8.0f, 8.0f, 1.0f));
 	
 }
 
@@ -402,9 +429,13 @@ void calculatePath()
 	if (currentTrackPoint < numberOfTrackPoints - 1)
 	{
 		cubeDestination = trackPoints[currentTrackPoint + 1];
+		trackStart = cubeLoc;
+		trackEnd = cubeDestination;
+		displacement = trackEnd - trackStart;
 		xDiff = cubeDestination.x - trackPoints[currentTrackPoint].x;
 		yDiff = cubeDestination.z - trackPoints[currentTrackPoint].z;
-
+		totalDistanceToTrackPoint = length(displacement);
+		/*
 		cout << "\n+------ TRACK POINT ANALYSIS ------+" << endl;
 		cout << "| Current Point [" << currentTrackPoint << "]:            |" << endl;
 		cout << "|   X: " << setw(8) << fixed << setprecision(2) << trackPoints[currentTrackPoint].x << "                 |" << endl;
@@ -436,7 +467,7 @@ void calculatePath()
 			totalDistanceToTrackPoint = yDiff;
 			goingYDirection = true;
 			goingXDirection = false;
-		}
+		}*/
 
 		if (!distanceSet)
 		{
@@ -450,71 +481,29 @@ void calculatePath()
 		cout << "   Distance Remaining:  " << fixed << setprecision(2) << totalDistanceToTrackPoint << endl;
 		cout << "======================================\n" << endl;
 	}
-
-
-
-	/*if (currentTrackPoint < numberOfTrackPoints - 1)
-	{
-		cubeDestination = trackPoints[currentTrackPoint + 1];
-		xDiff = cubeDestination.x - trackPoints[currentTrackPoint].x;
-		yDiff = cubeDestination.z - trackPoints[currentTrackPoint].z;
-
-		cout << "This is the current track point x: " << trackPoints[currentTrackPoint].x << endl;
-		cout << "This is the current track point y: " << trackPoints[currentTrackPoint].z << endl;
-		cout << "--------------------------------------------------------------------------------" << endl;
-		cout << "This is the cube destination point x: " << cubeDestination.x << endl;
-		cout << "This is the cube destination point y: " << cubeDestination.z << endl << endl << endl;
-	}
-
-	if (xDiff != 0)
-	{
-		cout << "This is xDiff ---> " << xDiff << endl;
-		cout << "This is yDiff ---> " << yDiff << endl;
-		cout << "+++++++++++++++++++++++++++++" << endl << endl << endl;
-		totalDistanceToTrackPoint = xDiff;
-		goingXDirection = true;
-		goingYDirection = false;
-	}
-	else if (yDiff != 0)
-	{
-
-		cout << "This is xDiff (y) ---> " << xDiff << endl;
-		cout << "This is yDiff (y)---> " << yDiff << endl;
-		cout << "+++++++++++++++++++++++++++++" << endl << endl << endl;
-		totalDistanceToTrackPoint = yDiff;
-		goingYDirection = true;
-		goingXDirection = false;
-	}
-
-	cout << "This is calculate path end   " << currentTrackPoint << endl;
-	cout << "This is distance to track point ========   " << totalDistanceToTrackPoint << endl;
-	return totalDistanceToTrackPoint;*/
 }
 
 void moveCube()
 {
-	if (distanceRemaining > 0.0f)
+	if (currentTrackPoint < trackPoints.size() - 1)
 	{
-		if (goingXDirection)
-		{
-			cubeLoc.x += timePassed * cubeSpeed;
-			distanceRemaining -= timePassed * cubeSpeed;
-			cout << ">> DISTANCE REMAINING MOTHERFUCKERRRRRR: X-Direction" << endl;
-			cout << "   X Difference: " << setw(8) << fixed << setprecision(2) << distanceRemaining << endl;
+		cubeDestination = trackPoints[currentTrackPoint + 1];
+		trackStart = cubeLoc;
+		trackEnd = cubeDestination;
+		displacement = trackEnd - trackStart;
 
-		}
-		else if (goingYDirection)
+		totalDistanceToTrackPoint = length(displacement);
+
+		if (totalDistanceToTrackPoint > 0.05f)
 		{
-			cubeLoc.z += timePassed * cubeSpeed;
-			distanceRemaining -= timePassed * cubeSpeed;
-			cout << ">> DISTANCE REMAINING MOTHERFUCKERRRRRR: Y-Direction" << endl;
-			cout << "   Y Difference: " << setw(8) << fixed << setprecision(2) << distanceRemaining << endl;
+			trackDirection = glm::normalize(displacement);
+			cubeLoc += trackDirection * moveAmount;
 		}
-	}
-	if (distanceRemaining <= 0)
-	{
-		currentTrackPoint++;
-		distanceSet = false;
+		else
+		{
+			cubeLoc = trackEnd; // floating point errors causing cube to slow down near end, so we set location to end when < 0.05f
+			currentTrackPoint++;
+		}
 	}
 }
 
@@ -674,6 +663,8 @@ void display(GLFWwindow* window, double currentTime)
 	timePassed = currentTime - previousTime;
 	previousTime = currentTime;
 
+	moveAmount = cubeSpeed * timePassed;
+
 	/*if (cubeLoc.z > 9.0f)
 		goingUp = false;
 	else if (cubeLoc.z < -9.0f)
@@ -720,9 +711,10 @@ void display(GLFWwindow* window, double currentTime)
 	//float orthoSize = 8.0f;
 	//lightPMatrix = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize + 5.0f, 1.0f, 50.0f);
 
-
-	calculatePath();
-	moveCube();
+	cout << "This is boolean data -=-=-0=-0=-0=-0=- " << readBoolean() << endl << endl << endl;
+	
+	if (readBoolean() == 1)
+		moveCube();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, shadowBuffer);
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadowTex, 0);
@@ -1009,7 +1001,7 @@ void passOne(double time)
 
 	// Track line #2
 	tlmMat = glm::translate(glm::mat4(1.0f), vector3(1.0f, 5.0f, 0.01f))
-		   * glm::rotate(glm::mat4(1.0f), toRadians(90.0f), vector3(0.0f, 0.0f, 1.0f))
+		   * glm::rotate(glm::mat4(1.0f), toRadians(45.0f), vector3(0.0f, 0.0f, 1.0f))
 		   * glm::scale(glm::mat4(1.0f), vector3(1.0f, 5.0f, 1.0f)); // Since it is rotated, to stretch it in the x-direction, we scale the y value	shadowMVP1 = lightPMatrix * lightVMatrix * tlmMat;
 	glUniformMatrix4fv(sLoc1, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
 
@@ -1099,6 +1091,9 @@ void passTwo(double time)
 
 	// ----------------------------------------- Cube -----------------------------------------
 	
+	isCube = true;
+	glUniform1i(isCubeLoc, isCube);
+
 	thisAmb[0] = bMatAmb[0]; thisAmb[1] = bMatAmb[1]; thisAmb[2] = bMatAmb[2];  // bronze
 	thisDif[0] = bMatDif[0]; thisDif[1] = bMatDif[1]; thisDif[2] = bMatDif[2];
 	thisSpe[0] = bMatSpe[0]; thisSpe[1] = bMatSpe[1]; thisSpe[2] = bMatSpe[2];
@@ -1140,7 +1135,8 @@ void passTwo(double time)
 	glDepthFunc(GL_LEQUAL);
 	glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
 
-
+	isCube = false;
+	glUniform1i(isCubeLoc, isCube);
 
 	//thisAmb[0] = bMatAmb[0]; thisAmb[1] = bMatAmb[1]; thisAmb[2] = bMatAmb[2];  // bronze
 	//thisDif[0] = bMatDif[0]; thisDif[1] = bMatDif[1]; thisDif[2] = bMatDif[2];
@@ -1374,7 +1370,7 @@ void passTwo(double time)
 	installLights(renderingProgram2);
 
 	tlmMat = glm::translate(glm::mat4(1.0f), vector3(1.0f, 5.0f, 0.01f)) 
-		   * glm::rotate(glm::mat4(1.0f), toRadians(90.0f), vector3(0.0f, 0.0f, 1.0f)) 
+		   * glm::rotate(glm::mat4(1.0f), toRadians(45.0f), vector3(0.0f, 0.0f, 1.0f)) 
 		   * glm::scale(glm::mat4(1.0f), vector3(1.0f, 5.0f, 1.0f)); // Since it is rotated, to stretch it in the x-direction, we scale the y value
 
 	invTrMat = glm::transpose(glm::inverse(tlmMat));
@@ -1840,4 +1836,22 @@ void moveLightToCursor(GLFWwindow* window)
 void spawnCube()
 {
 	spawnInstancedCube = true;
+}
+
+void setupSSBO()
+{
+	glGenBuffers(1, &ssbo);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int), nullptr, GL_DYNAMIC_DRAW);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo);
+}
+
+// Read the boolean from fragShader2
+bool readBoolean()
+{
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+	int* result = (int*)glMapBuffer(GL_SHADER_STORAGE_BUFFER, GL_READ_ONLY);
+	bool value = (*result == 1);
+	glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+	return value;
 }

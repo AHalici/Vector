@@ -31,14 +31,24 @@ layout (binding=0) uniform sampler2DShadow spotlightShadowTex;
 uniform bool isLine;
 uniform bool isRow;
 uniform bool isAxes;
+uniform bool isCube;
 
 float shadowfactor = 0.0;
 vec4 lightedColor;
+
+float currentDepth = shadow_coord.z / shadow_coord.w;  // Current pixel depth
+// We use textureProj instead of lookup because lookup makes our x and y values very small and adds a small offset for PCF
+float shadowMapDepth = textureProj(spotlightShadowTex, shadow_coord);
 
 // Attenuation (constant, linear, quadratic)
 float kc = 1.0;
 float kl = 0.09;
 float kq = 0.00032;
+
+layout(std430, binding=1) buffer BooleanBuffer 
+{
+	int booleanValue;
+};
 
 float lookup(float x, float y)
 {  	float t = textureProj(spotlightShadowTex, shadow_coord + vec4(x * 0.001 * shadow_coord.w,
@@ -63,6 +73,8 @@ void debugValueWithColor(float value) {
 
 void main(void)
 {
+	//booleanValue = 0;
+
 	vec3 L = normalize(varyingLightDir);
 	vec3 N = normalize(varyingNormal);
 	// Accesses the 4th row of the view matrix which is the translation column which has our negated camera position in world space
@@ -121,5 +133,22 @@ void main(void)
 		lightedColor =  ((15 * lightedColor) * (attenuation)); // Multiplying by 15 to increase
 	}
 
+	//fragColor = vec4(currentDepth, shadowMapDepth, 0.0f, 1.0f);
+	
 	fragColor = vec4((shadowColor.xyz + intensityFactor * shadowfactor * lightedColor.xyz),1.0);
+
+	if (isCube)
+	{
+		// If the object is in shadow or the intensity factor <= 0 (not in the cutoff angle of spotlight) or distance is > 8, vertex is in shadow
+		if (currentDepth > shadowMapDepth + 0.005 || intensityFactor <= 0.0 || distance > 8.0f) 
+		{
+			booleanValue = 1;
+
+		}
+		else 
+		{
+			booleanValue = 0; 
+		}
+	}
+
 }

@@ -111,7 +111,7 @@ bool goingRight = true;
 bool goingXDirection = false;
 bool goingYDirection = false;
 bool distanceSet = false;
-float cubeSpeed = 2.0f;
+float cubeSpeed = 0.5f;
 
 // Tools
 float yBounds, xBounds;
@@ -422,7 +422,7 @@ void calculatePath()
 			cout << "   Y Difference: " << setw(8) << fixed << setprecision(2) << yDiff << endl;
 			cout << "   Status: Moving horizontally\n" << endl;
 
-			totalDistanceToTrackPoint = xDiff;
+			totalDistanceToTrackPoint = xDiff + 1.0f; // Added 1.0f to compensate for the width of the cube or else it uses the left border of the cube to determine it's location and stops early
 			goingXDirection = true;
 			goingYDirection = false;
 		}

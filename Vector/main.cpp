@@ -40,6 +40,11 @@ float lightDiffuse[4] = { 1.2f, 1.2f, 1.2f, 1.0f };
 float lightSpecular[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 float lightDirection[3] = { 0.0f, 0.0f, -1.0f };
 
+//float lightAmbient[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+//float lightDiffuse[4] = { 1.2f, 1.2f, 1.2f, 1.0f };
+//float lightSpecular[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+//float lightDirection[3] = { 0.0f, 0.0f, -1.0f };
+
 GLuint globalAmbLoc, ambLoc, diffLoc, specLoc, posLoc, directionLoc, cutoffLoc, exponentLoc;
 glm::vec3 currentLightPos;
 glm::vec3 lightLoc = vector3(0.0f, 0.0f, 0.1f); // If I make the light closer to the plane with the z value, the fov of the lightPMatrix isn't wide enough and the shadow has artifacts
@@ -101,10 +106,11 @@ unsigned int planeNumVertices;
 unsigned int lineNumVertices;
 unsigned int cubeNumVertices;
 unsigned int tracklineNumVertices;
+unsigned int borderNumVertices;
 
 // Transformations
 GLuint mLoc, vLoc, pLoc, nLoc, mvLoc;
-glm::mat4 pmMat, vlmMat, hlmMat, tlmMat, amMat, cmMat, vMat, pMat, mvMat, invTrMat;
+glm::mat4 pmMat, vlmMat, hlmMat, tlmMat, amMat, cmMat, bmMat, vMat, pMat, mvMat, invTrMat;
 
 // Cube motion
 bool goingUp = true;
@@ -161,7 +167,7 @@ void setupTrackPoints();
 void setupSSBO();
 bool readBoolean();
 
-void calculatePath();
+//void calculatePath();
 void moveCube();
 
 void reloadShaders();
@@ -173,77 +179,6 @@ void directLightToCursor(GLFWwindow* window);
 void moveLightToCursor(GLFWwindow* window);
 
 bool rKeyPressed = false;
-
-//void handleAllMouseActions(GLFWwindow* window)
-//{
-//
-//	// Check current mouse states
-//	leftMouseHeld = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
-//	rightMouseHeld = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS);
-//	middleMouseHeld = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS);
-//
-//	// Track state changes
-//	wasleftMouseHeld = false;
-//	wasrightMouseHeld = false;
-//	wasmiddleMouseHeld = false;
-//
-//	// Only calculate intersection if any button is pressed
-//	glm::vec3 intersection;
-//	bool needIntersection = leftMouseHeld || rightMouseHeld || middleMouseHeld;
-//	if (needIntersection) {
-//		intersection = getMouseWorldIntersection(window);
-//	}
-//
-//	// Handle left mouse
-//	if (leftMouseHeld && !wasleftMouseHeld) {
-//		// Just pressed - spawn cube
-//		cubeSpawnLocation = intersection;
-//		cubeSpawnLocation.y += 0.5f;
-//		spawnCube();
-//	}
-//
-//	if (rightMouseHeld)
-//	{
-//		// Point light toward intersection using your coordinate system
-//			// We have to create a vector from our light to our target location. 
-//			// We then normalize that vector because if it wasn't, it would cause different lighting behaviors based on different lengths
-//		glm::vec3 currentLight = lightLoc;
-//		intersection.y = lightLoc.y; // Fixed at lightLoc.y so that the angle of the light doesn't change and stays at the same height as the light position.
-//		glm::vec3 target = intersection;
-//		glm::vec3 direction = glm::normalize(target - currentLight);
-//
-//		/*if (direction.x > direction.z)
-//		{
-//			direction.x = 0.7f;
-//		}
-//		else if (direction.z > direction.x)
-//		{
-//			direction.z = 0.7f;
-//		}*/
-//		cout << "This is the direction: x: " << direction.x << "  y: " << direction.y << "  z: " << direction.z << endl;
-//		lightDirection[0] = direction.x;
-//		lightDirection[1] = direction.y;
-//		lightDirection[2] = direction.z;
-//		installLights(renderingProgram2);
-//	}
-//	
-//	// Handle middle mouse
-//	if (middleMouseHeld) {
-//		lightLoc = vector3(intersection.x, intersection.z, lightLoc.y);
-//		currentLightPos = lightLoc;
-//
-//		//lightVMatrix = glm::lookAt(currentLightPos, vector3(lightDirection[0], lightDirection[2], lightDirection[1]), vector3(0.0f, 1.0f, 0.0f));
-//
-//
-//		installLights(renderingProgram2);
-//	}
-//
-//	// Update previous states
-//	wasleftMouseHeld = leftMouseHeld;
-//	wasrightMouseHeld = rightMouseHeld;
-//	wasmiddleMouseHeld = middleMouseHeld;
-//
-//}
 
 int main(void)
 {
@@ -557,6 +492,27 @@ void setupVertices()
 		1.0f,  1.0f,  1.0f, -1.0f,  1.0f,  1.0f, -1.0f,  1.0f, -1.0f
 	};
 
+	float borderVertexPositions[108] = {
+		// Front face
+		-0.5f,  0.5f, 10.0f, -0.5f,  0.5f, -10.0f, 0.5f,  0.5f, -10.0f,
+		0.5f,  0.5f, -10.0f, 0.5f,  0.5f, 10.0f, -0.5f,  0.5f, 10.0f,
+		// Right face
+		0.5f,  0.5f, -10.0f, 0.5f, -0.5f, -10.0f, 0.5f,  0.5f, 10.0f,
+		0.5f, -0.5f, -10.0f, 0.5f, -0.5f, 10.0f, 0.5f,  0.5f, 10.0f,
+		// Back face
+		0.5f, -0.5f, -10.0f, -0.5f, -0.5f, -10.0f, 0.5f, -0.5f, 10.0f,
+		-0.5f, -0.5f, -10.0f, -0.5f, -0.5f, 10.0f, 0.5f, -0.5f, 10.0f,
+		// Left face
+		-0.5f, -0.5f, -10.0f, -0.5f,  0.5f, -10.0f, -0.5f, -0.5f, 10.0f,
+		-0.5f,  0.5f, -10.0f, -0.5f,  0.5f, 10.0f, -0.5f, -0.5f, 10.0f,
+		// Bottom face
+		-0.5f,  0.5f, -10.0f, 0.5f,  0.5f, -10.0f, 0.5f, -0.5f, -10.0f,
+		0.5f, -0.5f, -10.0f, -0.5f, -0.5f, -10.0f, -0.5f,  0.5f, -10.0f,
+		// Top face
+		-0.5f, -0.5f, 10.0f, 0.5f, -0.5f, 10.0f, 0.5f,  0.5f, 10.0f,
+		0.5f,  0.5f, 10.0f, -0.5f,  0.5f, 10.0f, -0.5f, -0.5f, 10.0f
+	};
+
 	float cubeNormals[108] = {
 		// Front face (negative z) - 6 vertices, all with normal (0,0,-1)
 		0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f,
@@ -583,6 +539,27 @@ void setupVertices()
 		0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f
 	};
 
+	float borderNormals[108] = {
+		// Front face (positive y) - 6 vertices, all with normal (0,1,0)
+		0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+		// Right face (positive x) - 6 vertices, all with normal (1,0,0)
+		1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+		1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+		// Back face (negative y) - 6 vertices, all with normal (0,-1,0)
+		0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f,
+		0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f,
+		// Left face (negative x) - 6 vertices, all with normal (-1,0,0)
+		-1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
+		-1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
+		// Bottom face (negative z) - 6 vertices, all with normal (0,0,-1)
+		0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f,
+		0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, -1.0f,
+		// Top face (positive z) - 6 vertices, all with normal (0,0,1)
+		0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+		0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f
+	};
+
 	float planeNormals[18] =
 	{
 		0.0f, 1.0f, 0.0f,  // Normal for vertex (-10.0, 0.0, 0.0)
@@ -603,6 +580,7 @@ void setupVertices()
 	lineNumVertices = 2;
 	cubeNumVertices = 36;
 	tracklineNumVertices = 6;
+	borderNumVertices = 36;
 
 	// Init VAO and VBO 
 	glGenVertexArrays(1, vao);
@@ -638,6 +616,12 @@ void setupVertices()
 
 	glBindBuffer(GL_ARRAY_BUFFER, vbo[9]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(tracklineVertexPositions), tracklineVertexPositions, GL_STATIC_DRAW);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[10]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(borderVertexPositions), borderVertexPositions, GL_STATIC_DRAW);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[11]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(borderNormals), borderNormals, GL_STATIC_DRAW);
 }
 
 void display(GLFWwindow* window, double currentTime)
@@ -916,6 +900,73 @@ void passOne(double time)
 	glDepthFunc(GL_LEQUAL);
 	glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
 
+	//// ----------------------------------------- Borders -----------------------------------------
+
+	// Left border
+	bmMat = glm::translate(glm::mat4(1.0f), vector3(-10.5f, 0.0f, 0.5f));
+	shadowMVP1 = lightPMatrix * lightVMatrix * bmMat;
+	sLoc1 = glGetUniformLocation(renderingProgram1, "shadowMVP");
+	glUniformMatrix4fv(sLoc1, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
+
+	// Bind vertex attribute to vbo[7] values and enable vertex attribute
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[10]);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	glDrawArrays(GL_TRIANGLES, 0, borderNumVertices);
+
+	// Top Border
+	bmMat = glm::translate(glm::mat4(1.0f), vector3(0.0f, 10.5f, 0.5f))
+		* glm::rotate(glm::mat4(1.0f), toRadians(90.0f), vector3(0.0f, 0.0f, 1.0f))
+		* glm::scale(glm::mat4(1.0f), vector3(1.0f, 1.1f, 1.0f));	
+	shadowMVP1 = lightPMatrix * lightVMatrix * bmMat;
+	sLoc1 = glGetUniformLocation(renderingProgram1, "shadowMVP");
+	glUniformMatrix4fv(sLoc1, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
+
+	// Bind vertex attribute to vbo[7] values and enable vertex attribute
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[10]);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	glDrawArrays(GL_TRIANGLES, 0, borderNumVertices);
+
+
+	// Right border
+	bmMat = glm::translate(glm::mat4(1.0f), vector3(10.5f, 0.0f, 0.5f));
+	shadowMVP1 = lightPMatrix * lightVMatrix * bmMat;
+	sLoc1 = glGetUniformLocation(renderingProgram1, "shadowMVP");
+	glUniformMatrix4fv(sLoc1, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
+
+	// Bind vertex attribute to vbo[7] values and enable vertex attribute
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[10]);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	glDrawArrays(GL_TRIANGLES, 0, borderNumVertices);
+
+	// Bottom Border
+	bmMat = glm::translate(glm::mat4(1.0f), vector3(0.0f, -10.5f, 0.5f))
+		* glm::rotate(glm::mat4(1.0f), toRadians(90.0f), vector3(0.0f, 0.0f, 1.0f))
+		* glm::scale(glm::mat4(1.0f), vector3(1.0f, 1.1f, 1.0f));	
+	shadowMVP1 = lightPMatrix * lightVMatrix * bmMat;
+	sLoc1 = glGetUniformLocation(renderingProgram1, "shadowMVP");
+	glUniformMatrix4fv(sLoc1, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
+
+	// Bind vertex attribute to vbo[7] values and enable vertex attribute
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[10]);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	glDrawArrays(GL_TRIANGLES, 0, borderNumVertices);
+
 	//cmMat = glm::translate(glm::mat4(1.0f), cubeLoc2) * glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
 	//shadowMVP1 = lightPMatrix * lightVMatrix * cmMat;
 	//glUniformMatrix4fv(sLoc1, 1, GL_FALSE, glm::value_ptr(shadowMVP1));
@@ -1124,6 +1175,169 @@ void passTwo(double time)
 
 	isCube = false;
 	glUniform1i(isCubeLoc, isCube);
+
+	// ----------------------------------------- Borders -----------------------------------------
+
+	// Left Border
+	thisAmb[0] = bMatAmb[0]; thisAmb[1] = bMatAmb[1]; thisAmb[2] = bMatAmb[2];  // bronze
+	thisDif[0] = bMatDif[0]; thisDif[1] = bMatDif[1]; thisDif[2] = bMatDif[2];
+	thisSpe[0] = bMatSpe[0]; thisSpe[1] = bMatSpe[1]; thisSpe[2] = bMatSpe[2];
+	thisShi = bMatShi;
+
+	// Set VIEW matrix
+	updateCamera();
+	vMat = cameraRMat * cameraTMat;
+
+	currentLightPos = lightLoc;
+	installLights(renderingProgram2);
+
+	bmMat = glm::translate(glm::mat4(1.0f), vector3(-10.5f, 0.0f, 0.5f));
+
+	invTrMat = glm::transpose(glm::inverse(bmMat));
+	shadowMVP2 = b * lightPMatrix * lightVMatrix * bmMat;
+
+	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(bmMat));
+	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
+	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+	glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+	glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
+	glUniformMatrix4fv(sLoc2, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+
+	// Cube VERTICES
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[10]);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	// Cube NORMALS
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[11]);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(1);
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	glDrawArrays(GL_TRIANGLES, 0, borderNumVertices);
+
+	// Top Border
+	thisAmb[0] = bMatAmb[0]; thisAmb[1] = bMatAmb[1]; thisAmb[2] = bMatAmb[2];  // bronze
+	thisDif[0] = bMatDif[0]; thisDif[1] = bMatDif[1]; thisDif[2] = bMatDif[2];
+	thisSpe[0] = bMatSpe[0]; thisSpe[1] = bMatSpe[1]; thisSpe[2] = bMatSpe[2];
+	thisShi = bMatShi;
+
+	// Set VIEW matrix
+	updateCamera();
+	vMat = cameraRMat * cameraTMat;
+
+	currentLightPos = lightLoc;
+	installLights(renderingProgram2);
+
+	bmMat = glm::translate(glm::mat4(1.0f), vector3(0.0f, 10.5f, 0.5f)) 
+		  * glm::rotate(glm::mat4(1.0f), toRadians(90.0f), vector3(0.0f, 0.0f, 1.0f)) 
+		  * glm::scale(glm::mat4(1.0f), vector3(1.0f, 1.1f, 1.0f));
+
+	invTrMat = glm::transpose(glm::inverse(bmMat));
+	shadowMVP2 = b * lightPMatrix * lightVMatrix * bmMat;
+
+	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(bmMat));
+	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
+	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+	glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+	glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
+	glUniformMatrix4fv(sLoc2, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+
+	// Cube VERTICES
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[10]);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	// Cube NORMALS
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[11]);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(1);
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	glDrawArrays(GL_TRIANGLES, 0, borderNumVertices);
+
+
+	// Right Border
+	thisAmb[0] = bMatAmb[0]; thisAmb[1] = bMatAmb[1]; thisAmb[2] = bMatAmb[2];  // bronze
+	thisDif[0] = bMatDif[0]; thisDif[1] = bMatDif[1]; thisDif[2] = bMatDif[2];
+	thisSpe[0] = bMatSpe[0]; thisSpe[1] = bMatSpe[1]; thisSpe[2] = bMatSpe[2];
+	thisShi = bMatShi;
+
+	// Set VIEW matrix
+	updateCamera();
+	vMat = cameraRMat * cameraTMat;
+
+	currentLightPos = lightLoc;
+	installLights(renderingProgram2);
+
+	bmMat = glm::translate(glm::mat4(1.0f), vector3(10.5f, 0.0f, 0.5f));
+
+	invTrMat = glm::transpose(glm::inverse(bmMat));
+	shadowMVP2 = b * lightPMatrix * lightVMatrix * bmMat;
+
+	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(bmMat));
+	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
+	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+	glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+	glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
+	glUniformMatrix4fv(sLoc2, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+
+	// Cube VERTICES
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[10]);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	// Cube NORMALS
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[11]);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(1);
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	glDrawArrays(GL_TRIANGLES, 0, borderNumVertices);
+
+	// Bottom Border
+	thisAmb[0] = bMatAmb[0]; thisAmb[1] = bMatAmb[1]; thisAmb[2] = bMatAmb[2];  // bronze
+	thisDif[0] = bMatDif[0]; thisDif[1] = bMatDif[1]; thisDif[2] = bMatDif[2];
+	thisSpe[0] = bMatSpe[0]; thisSpe[1] = bMatSpe[1]; thisSpe[2] = bMatSpe[2];
+	thisShi = bMatShi;
+
+	// Set VIEW matrix
+	updateCamera();
+	vMat = cameraRMat * cameraTMat;
+
+	currentLightPos = lightLoc;
+	installLights(renderingProgram2);
+
+	bmMat = glm::translate(glm::mat4(1.0f), vector3(0.0f, -10.5f, 0.5f))
+		* glm::rotate(glm::mat4(1.0f), toRadians(90.0f), vector3(0.0f, 0.0f, 1.0f))
+		* glm::scale(glm::mat4(1.0f), vector3(1.0f, 1.1f, 1.0f));
+
+	invTrMat = glm::transpose(glm::inverse(bmMat));
+	shadowMVP2 = b * lightPMatrix * lightVMatrix * bmMat;
+
+	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(bmMat));
+	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
+	//glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+	glUniformMatrix4fv(pLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+	glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
+	glUniformMatrix4fv(sLoc2, 1, GL_FALSE, glm::value_ptr(shadowMVP2));
+
+	// Cube VERTICES
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[10]);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(0);
+
+	// Cube NORMALS
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[11]);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(1);
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	glDrawArrays(GL_TRIANGLES, 0, borderNumVertices);
 
 	//thisAmb[0] = bMatAmb[0]; thisAmb[1] = bMatAmb[1]; thisAmb[2] = bMatAmb[2];  // bronze
 	//thisDif[0] = bMatDif[0]; thisDif[1] = bMatDif[1]; thisDif[2] = bMatDif[2];
@@ -1842,3 +2056,5 @@ bool readBoolean()
 	glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 	return value;
 }
+
+

@@ -12,6 +12,11 @@ struct PositionalLight
 	float exponent;
 };
 
+struct DirectionalLight
+{	vec4 ambient, diffuse, specular;
+	vec3 direction;
+};
+
 struct Material
 {	vec4 ambient, diffuse, specular;
 	float shininess;
@@ -19,6 +24,7 @@ struct Material
 
 uniform vec4 globalAmbient;
 uniform PositionalLight light;
+uniform DirectionalLight sunLight;
 uniform Material material;
 uniform mat4 m_matrix;
 uniform mat4 v_matrix; 
@@ -27,6 +33,7 @@ uniform mat4 norm_matrix;
 uniform mat4 shadowMVP;
 
 layout (binding=0) uniform sampler2DShadow spotlightShadowTex;
+layout (binding=1) uniform sampler2DShadow sunShadowTex;
 
 uniform bool isLine;
 uniform bool isRow;
@@ -45,7 +52,7 @@ float kc = 1.0;
 float kl = 0.09;
 float kq = 0.00032;
 
-layout(std430, binding=1) buffer BooleanBuffer 
+layout(std430, binding=2) buffer BooleanBuffer 
 {
 	int booleanValue;
 };
@@ -123,6 +130,13 @@ void main(void)
 	vec4 shadowColor = globalAmbient * material.ambient
 				+ light.ambient * material.ambient * attenuation;
 
+
+	// Sunlight (Directional)
+	float sunShadowFactor = textureProj(sunShadowTex, shadow_coord);
+
+	vec3 sunDir = normalize(-sunLight.direction);
+	vec4 sunContribution = sunLight.diffuse * material.diffuse * max(dot(sunDir, N), 0.0);
+
 	// Light Max Distance 
 	if (distance < 8.0f)
 	{
@@ -133,7 +147,7 @@ void main(void)
 		lightedColor =  ((15 * lightedColor) * (attenuation)); // Multiplying by 15 to increase
 	}
 	
-	fragColor = vec4((shadowColor.xyz + intensityFactor * shadowfactor * lightedColor.xyz),1.0);
+	fragColor = vec4((shadowColor.xyz + intensityFactor * shadowfactor * lightedColor.xyz + sunContribution.xyz),1.0);
 
 	if (isCube)
 	{

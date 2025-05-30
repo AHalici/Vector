@@ -14,6 +14,11 @@ struct PositionalLight
 	float exponent;
 };
 
+struct DirectionalLight
+{	vec4 ambient, diffuse, specular;
+	vec3 direction;
+};
+
 struct Material
 {	vec4 ambient, diffuse, specular;   
 	float shininess;
@@ -21,6 +26,7 @@ struct Material
 
 uniform vec4 globalAmbient;
 uniform PositionalLight light;
+uniform DirectionalLight sunlight;
 uniform Material material;
 uniform mat4 m_matrix;
 uniform mat4 v_matrix;
@@ -29,6 +35,7 @@ uniform mat4 norm_matrix;
 uniform mat4 shadowMVP;
 
 layout (binding=0) uniform sampler2DShadow spotlightShadowTex;
+layout (binding=1) uniform sampler2DShadow sunShadowTex;
 
 uniform bool isLine;
 uniform bool isRow;

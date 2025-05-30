@@ -40,10 +40,13 @@ float lightDiffuse[4] = { 1.2f, 1.2f, 1.2f, 1.0f };
 float lightSpecular[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 float lightDirection[3] = { 0.0f, 0.0f, -1.0f };
 
-//float lightAmbient[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-//float lightDiffuse[4] = { 1.2f, 1.2f, 1.2f, 1.0f };
-//float lightSpecular[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-//float lightDirection[3] = { 0.0f, 0.0f, -1.0f };
+// Sun Light (Directional)
+float sunAmbient[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+float sunDiffuse[4] = { 0.4f, 0.4f, 0.6f, 1.0f };
+float sunSpecular[4] = { 0.3f, 0.3f, 0.3f, 1.0f };
+float sunDirectionArray[3] = { -1.0f, -0.5f, -1.0f }; // Direction TO the light
+
+GLuint sunAmbLoc, sunDiffLoc, sunSpecLoc, sunDirLoc;
 
 GLuint globalAmbLoc, ambLoc, diffLoc, specLoc, posLoc, directionLoc, cutoffLoc, exponentLoc;
 glm::vec3 currentLightPos;
@@ -56,11 +59,15 @@ float spotLightExponent = 4.0f;
 int scSizeX, scSizeY;
 GLuint sLoc1, sLoc2;
 GLuint shadowTex, shadowBuffer;
-glm::mat4 lightVMatrix;
-glm::mat4 lightPMatrix;
-glm::mat4 shadowMVP1;
-glm::mat4 shadowMVP2;
+GLuint sunShadowTex, sunShadowBuffer;
+glm::mat4 lightVMatrix, lightPMatrix, lightVPMatrix;
+glm::mat4 sunlightVMatrix, sunlightPMatrix, sunlightVPMatrix;
+glm::mat4 shadowMVP1, shadowMVP2;
+glm::mat4 sunShadowMVP;
 glm::mat4 b;
+
+glm::vec3 sunDirection;
+glm::vec3 sunPosition;
 
 
 // Gold
@@ -147,7 +154,7 @@ void updateCamera();
 
 void installLights(int renderingProgram);
 void setupShadowBuffers(GLFWwindow* window);
-void passOne(double time);
+void passOne(double time, glm::mat4 vpMatrix);
 void passTwo(double time);
 
 // Key press listeners for camera controller
@@ -667,7 +674,7 @@ void display(GLFWwindow* window, double currentTime)
 	glm::vec3 lightDir = glm::normalize(lightTarget - currentLightPos);
 	glm::vec3 upVector = vector3(0.0f, 1.0f, 0.0f);
 
-	// If pointing straight up or down, use a different up vector
+	// If pointing straight up or down, up vector becomes parallel so use a different up vector
 	if (abs(glm::dot(lightDir, upVector)) > 0.99f) {
 		upVector = vector3(1.0f, 0.0f, 0.0f);  // Use X-axis as up instead
 	}
@@ -675,7 +682,15 @@ void display(GLFWwindow* window, double currentTime)
 
 	lightVMatrix = glm::lookAt(currentLightPos, lightTarget, upVector);
 	lightPMatrix = glm::perspective(toRadians(spotlightCutoff * 2.0f), aspect, 0.1f, 1000.0f);
-	
+	lightVPMatrix = lightPMatrix * lightVMatrix;
+
+	sunDirection = glm::normalize(vector3(-1.0f, -1.0f, -0.5f));
+	sunPosition = vector3(0.0f, 0.0f, 100.0f);// cubeLoc - sunDirection * 50.0f; // Sets the light very far
+
+	sunlightVMatrix = glm::lookAt(sunPosition, vector3(0.0f, 0.0f, 0.0f), vector3(0.0f, 1.0f, 0.0f));
+	float orthoSize = 20.0f;
+	sunlightPMatrix = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize, 0.1f, 100.0f);
+	sunlightVPMatrix = sunlightPMatrix * sunlightVMatrix;
 
 	// Changed to Orthographic Projection because it's better for directional lighting, but not for positional or spotlight
 		// Using Orthographic projection doesn't allow shadow to change angles when the object is moved or the light moves
@@ -695,13 +710,27 @@ void display(GLFWwindow* window, double currentTime)
 	glEnable(GL_POLYGON_OFFSET_FILL);
 	glPolygonOffset(2.0f, 4.0f);
 
-	passOne(currentTime);
+	passOne(currentTime, lightVPMatrix);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, sunShadowBuffer);
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, sunShadowTex, 0);
+
+	glDrawBuffer(GL_NONE);
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_POLYGON_OFFSET_FILL);
+	glPolygonOffset(2.0f, 4.0f);
 
 	glDisable(GL_POLYGON_OFFSET_FILL);
+
+	passOne(currentTime, sunlightVPMatrix);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, shadowTex);
+
+	
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, sunShadowTex);
 
 	glDrawBuffer(GL_FRONT);
 
@@ -879,7 +908,7 @@ void display(GLFWwindow* window, double currentTime)
 	//glUniform1i(isLineLoc, isLine);
 }
 
-void passOne(double time)
+void passOne(double time, glm::mat4 vpMatrix)
 {
 	glUseProgram(renderingProgram1);
 
@@ -1854,6 +1883,10 @@ void installLights(int renderingProgram)
 	lightPos[1] = currentLightPos.y;
 	lightPos[2] = currentLightPos.z;
 
+	sunDirectionArray[0] = sunDirection.x;
+	sunDirectionArray[1] = sunDirection.y;
+	sunDirectionArray[2] = sunDirection.z;
+
 	matAmb[0] = thisAmb[0]; matAmb[1] = thisAmb[1]; matAmb[2] = thisAmb[2]; matAmb[3] = thisAmb[3];
 	matDif[0] = thisDif[0]; matDif[1] = thisDif[1]; matDif[2] = thisDif[2]; matDif[3] = thisDif[3];
 	matSpe[0] = thisSpe[0]; matSpe[1] = thisSpe[1]; matSpe[2] = thisSpe[2]; matSpe[3] = thisSpe[3];
@@ -1874,6 +1907,11 @@ void installLights(int renderingProgram)
 	mspecLoc = glGetUniformLocation(renderingProgram, "material.specular");
 	mshiLoc = glGetUniformLocation(renderingProgram, "material.shininess");
 
+	sunAmbLoc = glGetUniformLocation(renderingProgram, "sunLight.ambient");
+	sunDiffLoc = glGetUniformLocation(renderingProgram, "sunLight.diffuse");
+	sunSpecLoc = glGetUniformLocation(renderingProgram, "sunLight.specular");
+	sunDirLoc = glGetUniformLocation(renderingProgram, "sunLight.direction");
+
 
 	glProgramUniform4fv(renderingProgram, globalAmbLoc, 1, globalAmbient);
 	glProgramUniform4fv(renderingProgram, ambLoc, 1, lightAmbient);
@@ -1888,6 +1926,11 @@ void installLights(int renderingProgram)
 	glProgramUniform4fv(renderingProgram, mdiffLoc, 1, matDif);
 	glProgramUniform4fv(renderingProgram, mspecLoc, 1, matSpe);
 	glProgramUniform1f(renderingProgram, mshiLoc, matShi);
+
+	glProgramUniform4fv(renderingProgram, sunAmbLoc, 1, sunAmbient);
+	glProgramUniform4fv(renderingProgram, sunDiffLoc, 1, sunDiffuse);
+	glProgramUniform4fv(renderingProgram, sunSpecLoc, 1, sunSpecular);
+	glProgramUniform3fv(renderingProgram, sunDirLoc, 1, sunDirectionArray);
 
 	if (Utils::checkOpenGLError()) {
 		std::cout << "OpenGL error in installLights!" << std::endl;
@@ -1911,6 +1954,20 @@ void setupShadowBuffers(GLFWwindow* window)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
 
 	// may reduce shadow border artifacts
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	// Add this after your existing shadow buffer setup
+	glGenFramebuffers(1, &sunShadowBuffer);
+
+	glGenTextures(1, &sunShadowTex);
+	glBindTexture(GL_TEXTURE_2D, sunShadowTex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, scSizeX, scSizeY, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
@@ -2044,7 +2101,7 @@ void setupSSBO()
 	glGenBuffers(1, &ssbo);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int), nullptr, GL_DYNAMIC_DRAW);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, ssbo);
 }
 
 // Read the boolean from fragShader2

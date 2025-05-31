@@ -42,9 +42,9 @@ float lightDirection[3] = { 0.0f, 0.0f, -1.0f };
 
 // Sun Light (Directional)
 float sunAmbient[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-float sunDiffuse[4] = { 0.4f, 0.4f, 0.6f, 1.0f };
-float sunSpecular[4] = { 0.3f, 0.3f, 0.3f, 1.0f };
-float sunDirectionArray[3] = { -1.0f, -0.5f, -1.0f }; // Direction TO the light
+float sunDiffuse[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+float sunSpecular[4] = { 0.5f, 0.5f, 0.3f, 1.0f };
+float sunDirectionArray[3]; // = { -1.0f, -1.0f, -0.5f }; // Direction OF the light
 
 GLuint sunAmbLoc, sunDiffLoc, sunSpecLoc, sunDirLoc;
 
@@ -94,6 +94,12 @@ float* lgMatDif = Utils::lightGreenDiffuse();
 float* lgMatSpe = Utils::lightGreenSpecular();
 float lgMatShi = Utils::lightGreenShininess();
 
+// Dark Grey
+float* dgMatAmb = Utils::darkGrayAmbient();
+float* dgMatDif = Utils::darkGrayDiffuse();
+float* dgMatSpe = Utils::darkGraySpecular();
+float dgMatShi = Utils::darkGrayShininess();
+
 float thisAmb[4], thisDif[4], thisSpe[4], matAmb[4], matDif[4], matSpe[4];
 float thisShi, matShi;
 GLuint mambLoc, mdiffLoc, mspecLoc, mshiLoc;
@@ -129,7 +135,8 @@ float cubeSpeed = 2.0f;
 float moveAmount;
 
 // Tools
-float yBounds, xBounds;
+float yBounds = 10.0f;
+float xBounds = 10.0f;
 float timePassed;
 float previousTime;
 bool isLine = false;
@@ -137,6 +144,7 @@ bool isRow = false;
 bool isAxes = false;
 bool isCube = false;
 GLuint isLineLoc1, isRowLoc1, isAxesLoc1, isLineLoc2, isRowLoc2, isAxesLoc2, isCubeLoc, ssbo; // ssbo is a buffer that stores our boolean from fragShader2
+
 
 // Mouse
 double mouseX, mouseY;
@@ -164,6 +172,8 @@ void onAKeyPressed();
 void onDKeyPressed();
 void onZKeyPressed();
 void onCKeyPressed();
+void onCtrlKeyPressed();
+void onSpaceKeyPressed();
 void onEKeyPressed();
 void onQKeyPressed();
 void onEscKeyPressed();
@@ -176,6 +186,7 @@ bool readBoolean();
 
 //void calculatePath();
 void moveCube();
+void resetCube();
 
 void reloadShaders();
 
@@ -246,6 +257,14 @@ int main(void)
 			// Call the function continuously while Q is held down
 			onQKeyPressed();
 		}
+		if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
+			// Call the function continuously while L-Ctrl is held down
+			onCtrlKeyPressed();
+		}
+		if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+			// Call the function continuously while Space is held down
+			onSpaceKeyPressed();
+		}
 		if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
 			// Call the function continuously while Esc is held down
 			onEscKeyPressed();
@@ -270,6 +289,10 @@ int main(void)
 			}
 		} else if (glfwGetKey(window, GLFW_KEY_R) == GLFW_RELEASE) {
 			rKeyPressed = false;
+		}
+		if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS)
+		{
+			resetCube();
 		}
 	}
 
@@ -300,7 +323,7 @@ void init(GLFWwindow* window)
 
 	// Object Location Init
 	planeLocX = 0.0f; planeLocY = 0.0f; planeLocZ = 0.0f;
-	cubeLoc = vector3(1.0f, 0.0f, 0.5f);
+	//cubeLoc = vector3(1.0f, 0.0f, 0.5f);
 
 	mLoc = glGetUniformLocation(renderingProgram2, "m_matrix");
 	vLoc = glGetUniformLocation(renderingProgram2, "v_matrix");
@@ -322,9 +345,10 @@ void init(GLFWwindow* window)
 	setupVertices();
 	setupCamera();
 	setupShadowBuffers(window);
-	
 	setupTrackPoints();
 	setupSSBO();
+
+	cubeLoc = trackPoints[0];
 
 	// Bias Matrix = converts from light projection space [-1,1] to texture coordinates [0,1]
 	b = glm::mat4
@@ -341,6 +365,10 @@ void setupTrackPoints()
 	currentTrackPoint = 0;
 	numberOfTrackPoints = 3;
 
+	for (int i = 0; trackPoints.size(); i++)
+	{
+		trackPoints.pop_back();
+	}
 	// Start position
 	trackPoints.push_back(vector3(1.0f, 0.0f, 1.0f));
 	// Initial straight segment
@@ -412,6 +440,37 @@ void calculatePath()
 	}
 }
 
+void resetCube()
+{
+	setupTrackPoints();
+	cubeLoc = trackPoints[0];
+	cubeLoc.y = 0.5f;
+}
+
+bool isCubeInLight()
+{
+	// Convert cubeLoc to light space (World Space -> Light Space -> Light Perspective Space
+	glm::vec4 lightSpacePos = lightPMatrix * lightVMatrix * glm::vec4(cubeLoc, 1.0f);
+
+	// Perspective divide to convert from 4D homogenous coordinates to 3D coordinates
+	lightSpacePos /= lightSpacePos.w;
+	
+	// Convert from NDC [-1,1] to texture coordinates [0,1]
+	glm::vec3 projCoords = vector3(lightSpacePos.x, lightSpacePos.z, lightSpacePos.y) * 0.5f + 0.5f;
+
+	// Vector FROM light TO cubeLoc
+	glm::vec3 lightToPos = cubeLoc - currentLightPos;
+	// Normalize direction of spotlight
+	glm::vec3 lightDir = glm::normalize(vector3(lightDirection[0], lightDirection[2], lightDirection[1]));
+	// Angle between light's direction vector and vector to cube location
+	float angle = glm::degrees(acos(glm::dot(glm::normalize(lightToPos), lightDir)));
+
+	// Straight line distance between light and cube
+	float distance = glm::length(lightToPos);
+	// If in range, return true
+	return (distance < 8.0f && angle <= spotlightCutoff);
+}
+
 void moveCube()
 {
 	if (currentTrackPoint < trackPoints.size() - 1)
@@ -421,16 +480,23 @@ void moveCube()
 		trackEnd = cubeDestination;
 		displacement = trackEnd - trackStart;
 
-		totalDistanceToTrackPoint = length(displacement);
+		totalDistanceToTrackPoint = length(glm::vec3(displacement.x, displacement.z, 0));
+
+		cout << "Total distance to trackpoint: " << totalDistanceToTrackPoint << endl << endl;
+		cout << "displacement.x: " << displacement.x << endl;
+		cout << "displacement.y: " << displacement.y << endl;
+		cout << "displacement.z: " << displacement.z << endl << endl;
 
 		if (totalDistanceToTrackPoint > 0.05f)
 		{
 			trackDirection = glm::normalize(displacement);
 			cubeLoc += trackDirection * moveAmount;
+			cubeLoc.y = 0.4f;
 		}
 		else
 		{
 			cubeLoc = trackEnd; // floating point errors causing cube to slow down near end, so we set location to end when < 0.05f
+			cubeLoc.y = 0.4f;
 			currentTrackPoint++;
 		}
 	}
@@ -684,12 +750,13 @@ void display(GLFWwindow* window, double currentTime)
 	lightPMatrix = glm::perspective(toRadians(spotlightCutoff * 2.0f), aspect, 0.1f, 1000.0f);
 	lightVPMatrix = lightPMatrix * lightVMatrix;
 
-	sunDirection = glm::normalize(vector3(-1.0f, -1.0f, -0.5f));
+	sunDirection = glm::normalize(vector3(-1.0f, -0.5f, -0.2f));
 	sunPosition = vector3(0.0f, 0.0f, 100.0f);// cubeLoc - sunDirection * 50.0f; // Sets the light very far
 
 	sunlightVMatrix = glm::lookAt(sunPosition, vector3(0.0f, 0.0f, 0.0f), vector3(0.0f, 1.0f, 0.0f));
 	float orthoSize = 20.0f;
 	sunlightPMatrix = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize, 0.1f, 100.0f);
+	//sunlightPMatrix = glm::perspective(toRadians(90.0f), aspect, 0.1f, 100.0f);
 	sunlightVPMatrix = sunlightPMatrix * sunlightVMatrix;
 
 	// Changed to Orthographic Projection because it's better for directional lighting, but not for positional or spotlight
@@ -697,9 +764,12 @@ void display(GLFWwindow* window, double currentTime)
 	//float orthoSize = 8.0f;
 	//lightPMatrix = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize + 5.0f, 1.0f, 50.0f);
 
-	cout << "This is boolean data -=-=-0=-0=-0=-0=- " << readBoolean() << endl << endl << endl;
+	//cout << "This is boolean data -=-=-0=-0=-0=-0=- " << readBoolean() << endl << endl << endl;
 	
-	if (readBoolean() == 1)
+	/*if (readBoolean() == 1)
+		moveCube();*/
+
+	if (!isCubeInLight())
 		moveCube();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, shadowBuffer);
@@ -1452,10 +1522,10 @@ void passTwo(double time)
 
 	// ----------------------------------------- Plane -----------------------------------------
 
-	thisAmb[0] = sMatAmb[0]; thisAmb[1] = sMatAmb[1]; thisAmb[2] = sMatAmb[2];  // silver
-	thisDif[0] = sMatDif[0]; thisDif[1] = sMatDif[1]; thisDif[2] = sMatDif[2];
-	thisSpe[0] = sMatSpe[0]; thisSpe[1] = sMatSpe[1]; thisSpe[2] = sMatSpe[2];
-	thisShi = sMatShi;
+	thisAmb[0] = dgMatAmb[0]; thisAmb[1] = dgMatAmb[1]; thisAmb[2] = dgMatAmb[2];  // dark grey
+	thisDif[0] = dgMatDif[0]; thisDif[1] = dgMatDif[1]; thisDif[2] = dgMatDif[2];
+	thisSpe[0] = dgMatSpe[0]; thisSpe[1] = dgMatSpe[1]; thisSpe[2] = dgMatSpe[2];
+	thisShi = dgMatShi;
 
 	// Set VIEW matrix
 	updateCamera();
@@ -1825,15 +1895,27 @@ void onDKeyPressed()
 	cameraController.moveRight();
 }
 
-void onZKeyPressed() 
+void onZKeyPressed()
 {
-	std::cout << "Z key pressed" << std::endl;
+	cout << "Z Key Pressed" << endl;
+	cameraController.rotateDown(cameraRMat);
+}
+
+void onCKeyPressed()
+{
+	cout << "C Key Pressed" << endl;
+	cameraController.rotateUp(cameraRMat);
+}
+
+void onSpaceKeyPressed() 
+{
+	std::cout << "Space key pressed" << std::endl;
 	cameraController.moveUp();
 }
 
-void onCKeyPressed() 
+void onCtrlKeyPressed() 
 {
-	std::cout << "C key pressed" << std::endl;
+	std::cout << "L-Ctrl key pressed" << std::endl;
 	cameraController.moveDown();
 }
 
@@ -2085,10 +2167,15 @@ void moveLightToCursor(GLFWwindow* window)
 {
 	glm::vec3 intersection = getMouseWorldIntersection(window);
 
-	lightLoc = vector3(intersection.x, intersection.z, lightLoc.y);
-	currentLightPos = lightLoc;
+	if ((intersection.x < xBounds && intersection.x > -xBounds) && (intersection.z < yBounds && intersection.z > -yBounds))
+	{
+		cout << "Intersection.x: " << intersection.x << endl;
+		cout << "Intersection.z: " << intersection.z << endl;
+		lightLoc = vector3(intersection.x, intersection.z, lightLoc.y);
+		currentLightPos = lightLoc;
 
-	installLights(renderingProgram2);
+		installLights(renderingProgram2);
+	}
 }
 
 void spawnCube()
@@ -2101,7 +2188,7 @@ void setupSSBO()
 	glGenBuffers(1, &ssbo);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int), nullptr, GL_DYNAMIC_DRAW);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, ssbo);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, ssbo); // 2 is the binding number
 }
 
 // Read the boolean from fragShader2

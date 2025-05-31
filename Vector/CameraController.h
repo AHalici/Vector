@@ -34,6 +34,8 @@ public:
 
 	void rotateRight(glm::mat4 &rMat);
 	void rotateLeft(glm::mat4 &rMat);
+	void rotateUp(glm::mat4 &rMat);
+	void rotateDown(glm::mat4 &rMat);
 
 private:
 	float movementDistance = 0.1f;

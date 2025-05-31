@@ -38,7 +38,7 @@ layout (binding=1) uniform sampler2DShadow sunShadowTex;
 uniform bool isLine;
 uniform bool isRow;
 uniform bool isAxes;
-uniform bool isCube;
+//uniform bool isCube;
 
 float shadowfactor = 0.0;
 vec4 lightedColor;
@@ -49,13 +49,13 @@ float shadowMapDepth = textureProj(spotlightShadowTex, shadow_coord);
 
 // Attenuation (constant, linear, quadratic)
 float kc = 1.0;
-float kl = 0.09;
+float kl = 0.009;
 float kq = 0.00032;
 
-layout(std430, binding=2) buffer BooleanBuffer 
-{
-	int booleanValue;
-};
+//layout(std430, binding=2) buffer BooleanBuffer 
+//{
+//	int booleanValue;
+//};
 
 float lookup(float x, float y)
 {  	float t = textureProj(spotlightShadowTex, shadow_coord + vec4(x * 0.001 * shadow_coord.w,
@@ -144,23 +144,23 @@ void main(void)
 				+ light.specular * material.specular
 				* pow(max(dot(H,N),0.0),material.shininess);
 
-		lightedColor =  ((15 * lightedColor) * (attenuation)); // Multiplying by 15 to increase
+		lightedColor =  ((20 * lightedColor) * (attenuation)); // Multiplying by 15 to increase
 	}
 	
 	fragColor = vec4((shadowColor.xyz + intensityFactor * shadowfactor * lightedColor.xyz + sunContribution.xyz),1.0);
 
-	if (isCube)
-	{
-		// If the object is in shadow or the intensity factor <= 0 (not in the cutoff angle of spotlight) or distance is > 8, vertex is in shadow
-		if (currentDepth > shadowMapDepth + 0.005 || intensityFactor <= 0.0 || distance > 8.0f) 
-		{
-			booleanValue = 1;
-
-		}
-		else 
-		{
-			booleanValue = 0; 
-		}
-	}
+//	if (isCube)
+//	{
+//		// If the object is in shadow or the intensity factor <= 0 (not in the cutoff angle of spotlight) or distance is > 8, vertex is in shadow
+//		if (currentDepth > shadowMapDepth + 0.005 || intensityFactor <= 0.0 || distance > 8.0f) 
+//		{
+//			booleanValue = 1;
+//
+//		}
+//		else 
+//		{
+//			booleanValue = 0; 
+//		}
+//	}
 
 }

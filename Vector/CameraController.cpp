@@ -105,5 +105,19 @@ void CameraController::rotateLeft(glm::mat4 &rMat)
 	N = rMat * glm::vec4(N, 0.0f);
 }
 
+void CameraController::rotateUp(glm::mat4& rMat)
+{
+	rMat = glm::rotate(glm::mat4(1.0f), -rotationAngle * 0.5f, U);
+	V = rMat * glm::vec4(V, 0.0f);
+	N = rMat * glm::vec4(N, 0.0f);
+}
+
+void CameraController::rotateDown(glm::mat4& rMat)
+{
+	rMat = glm::rotate(glm::mat4(1.0f), rotationAngle * 0.5f, U);
+	V = rMat * glm::vec4(V, 0.0f);
+	N = rMat * glm::vec4(N, 0.0f);
+}
+
 
 

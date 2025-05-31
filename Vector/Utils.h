@@ -51,4 +51,9 @@ public:
 	static float* lightGreenDiffuse();
 	static float* lightGreenSpecular();
 	static float lightGreenShininess();
+
+	static float* darkGrayAmbient();
+	static float* darkGrayDiffuse();
+	static float* darkGraySpecular();
+	static float darkGrayShininess();
 };

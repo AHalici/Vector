@@ -273,10 +273,16 @@ float Utils::silverShininess() { return 51.2f; }
 float* Utils::bronzeAmbient() { static float a[4] = { 0.2125f, 0.1275f, 0.0540f, 1 }; return (float*)a; }
 float* Utils::bronzeDiffuse() { static float a[4] = { 0.7140f, 0.4284f, 0.1814f, 1 }; return (float*)a; }
 float* Utils::bronzeSpecular() { static float a[4] = { 0.3936f, 0.2719f, 0.1667f, 1 }; return (float*)a; }
-float Utils::bronzeShininess() { return 25.6f; }
+float Utils::bronzeShininess() { return 95.6f; }
 
 // LIGHT GREEN material - ambient, diffuse, specular, and shininess
 float* Utils::lightGreenAmbient() { static float a[4] = { 0.1500f, 0.2500f, 0.1500f, 1 }; return (float*)a; }
 float* Utils::lightGreenDiffuse() { static float a[4] = { 0.4500f, 0.7500f, 0.4500f, 1 }; return (float*)a; }
 float* Utils::lightGreenSpecular() { static float a[4] = { 0.2000f, 0.3000f, 0.2000f, 1 }; return (float*)a; }
 float Utils::lightGreenShininess() { return 8.0f; }
+
+// DARK GRAY material - ambient, diffuse, specular, and shininess
+float* Utils::darkGrayAmbient() { static float a[4] = { 0.1f, 0.1f, 0.1f, 1 }; return (float*)a; }
+float* Utils::darkGrayDiffuse() { static float a[4] = { 0.25f, 0.25f, 0.25f, 1 }; return (float*)a; }
+float* Utils::darkGraySpecular() { static float a[4] = { 0.3f, 0.3f, 0.3f, 1 }; return (float*)a; }
+float Utils::darkGrayShininess() { return 40.0f; }

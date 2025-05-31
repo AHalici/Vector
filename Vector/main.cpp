@@ -112,7 +112,8 @@ glm::vec3 cubeLoc, cubeLoc2, cubeSpawnLocation, cubeDestination;
 unsigned int numberOfTrackPoints, currentTrackPoint;
 float totalDistanceToTrackPoint, distanceRemaining;
 vector<glm::vec3> trackPoints;
-glm::vec3 trackStart, trackEnd, displacement, trackDirection;
+glm::vec3 trackStart, trackEnd, trackDirection;
+glm::vec2 displacement;
 
 // Object number of vertices
 unsigned int planeNumVertices;
@@ -349,6 +350,7 @@ void init(GLFWwindow* window)
 	setupSSBO();
 
 	cubeLoc = trackPoints[0];
+	cubeLoc.y = 0.4f;
 
 	// Bias Matrix = converts from light projection space [-1,1] to texture coordinates [0,1]
 	b = glm::mat4
@@ -447,7 +449,7 @@ void resetCube()
 	cubeLoc.y = 0.5f;
 }
 
-bool isCubeInLight()
+static bool isCubeInLight()
 {
 	// Convert cubeLoc to light space (World Space -> Light Space -> Light Perspective Space
 	glm::vec4 lightSpacePos = lightPMatrix * lightVMatrix * glm::vec4(cubeLoc, 1.0f);
@@ -478,18 +480,19 @@ void moveCube()
 		cubeDestination = trackPoints[currentTrackPoint + 1];
 		trackStart = cubeLoc;
 		trackEnd = cubeDestination;
-		displacement = trackEnd - trackStart;
+		// Check only the x and z values since the y value is constant
+		displacement = glm::vec2(trackEnd.x - trackStart.x, trackEnd.z - trackStart.z);
 
-		totalDistanceToTrackPoint = length(glm::vec3(displacement.x, displacement.z, 0));
+		totalDistanceToTrackPoint = length(displacement);
 
 		cout << "Total distance to trackpoint: " << totalDistanceToTrackPoint << endl << endl;
 		cout << "displacement.x: " << displacement.x << endl;
 		cout << "displacement.y: " << displacement.y << endl;
-		cout << "displacement.z: " << displacement.z << endl << endl;
+		
 
 		if (totalDistanceToTrackPoint > 0.05f)
 		{
-			trackDirection = glm::normalize(displacement);
+			trackDirection = glm::normalize(vector3(displacement.x, displacement.y, 0.0f)); // displacement.y is the trackEnd.z value 
 			cubeLoc += trackDirection * moveAmount;
 			cubeLoc.y = 0.4f;
 		}

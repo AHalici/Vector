@@ -7,6 +7,7 @@
 #include <fstream>
 #include <cmath>
 #include <glm/glm.hpp>
+#include <glm/gtc/noise.hpp>
 #include <glm/gtc/type_ptr.hpp> // glm::value_ptr
 #include <glm/gtc/matrix_transform.hpp> // glm::translate, glm::rotate, glm::scale, glm::perspective
 #include "Utils.h"
@@ -64,7 +65,7 @@ glm::mat4 lightVMatrix, lightPMatrix, lightVPMatrix;
 glm::mat4 sunlightVMatrix, sunlightPMatrix, sunlightVPMatrix;
 glm::mat4 shadowMVP1, shadowMVP2;
 glm::mat4 sunShadowMVP;
-glm::mat4 b;
+glm::mat4 bias;
 
 glm::vec3 sunDirection;
 glm::vec3 sunPosition;
@@ -198,6 +199,59 @@ void directLightToCursor(GLFWwindow* window);
 void moveLightToCursor(GLFWwindow* window);
 
 bool rKeyPressed = false;
+
+//// Noise
+//GLubyte* noiseData = new GLubyte[width * height * 4];
+//float a = 1.0f;
+//float b = 2.0f;
+//
+//GLuint texID;
+//
+//void generateNoiseData()
+//{
+//	float xFactor = 1.0f / (width - 1);
+//	float yFactor = 1.0f / (height - 1);
+//
+//	for (int row = 0; row < height; row++)
+//	{
+//		for (int col = 0; col < width; col++)
+//		{
+//			float x = xFactor * col;
+//			float y = yFactor * row;
+//			float sum = 0.0f;
+//			float freq = a;
+//			float scale = b;
+//
+//			// Compute the sum for each octave
+//			for (int oct = 0; oct < 4; oct++)
+//			{
+//				glm::vec2 p(x * freq, y * freq);
+//				//float val = glm::perlin(p) / scale;
+//				float val = glm::perlin(p, glm::vec2(freq)) / scale; // periodic (no seams in noise texture)
+//				
+//				sum += val;
+//				float result = (sum + 1.0f) / 2.0f;
+//
+//				// Store in texture buffer
+//				noiseData[((row * width + col) * 4) + col] = (GLubyte) ( result );
+//				freq *= 2.0f; // Double the frequency
+//				scale *= b; // Next power of b
+//			}
+//		}
+//	}
+//}
+//
+//void noiseTexture()
+//{
+//	glGenTextures(1, &texID);
+//
+//	glBindTexture(GL_TEXTURE_2D, texID);
+//	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, width, height);
+//	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA32F, GL_UNSIGNED_BYTE, noiseData);
+//
+//	delete[] noiseData;
+//}
+
 
 int main(void)
 {
@@ -353,7 +407,7 @@ void init(GLFWwindow* window)
 	cubeLoc.y = 0.4f;
 
 	// Bias Matrix = converts from light projection space [-1,1] to texture coordinates [0,1]
-	b = glm::mat4
+	bias = glm::mat4
 	(
 		0.5f, 0.0f, 0.0f, 0.0f,
 		0.0f, 0.5f, 0.0f, 0.0f,
@@ -1249,7 +1303,7 @@ void passTwo(double time)
 	cmMat = glm::translate(glm::mat4(1.0f), cubeLoc) * glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
 
 	invTrMat = glm::transpose(glm::inverse(cmMat));
-	shadowMVP2 = b * lightPMatrix * lightVMatrix * cmMat;
+	shadowMVP2 = bias * lightPMatrix * lightVMatrix * cmMat;
 
 	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(cmMat));
 	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
@@ -1296,7 +1350,7 @@ void passTwo(double time)
 	bmMat = glm::translate(glm::mat4(1.0f), vector3(-10.5f, 0.0f, 0.5f));
 
 	invTrMat = glm::transpose(glm::inverse(bmMat));
-	shadowMVP2 = b * lightPMatrix * lightVMatrix * bmMat;
+	shadowMVP2 = bias * lightPMatrix * lightVMatrix * bmMat;
 
 	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(bmMat));
 	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
@@ -1337,7 +1391,7 @@ void passTwo(double time)
 		  * glm::scale(glm::mat4(1.0f), vector3(1.0f, 1.1f, 1.0f));
 
 	invTrMat = glm::transpose(glm::inverse(bmMat));
-	shadowMVP2 = b * lightPMatrix * lightVMatrix * bmMat;
+	shadowMVP2 = bias * lightPMatrix * lightVMatrix * bmMat;
 
 	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(bmMat));
 	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
@@ -1377,7 +1431,7 @@ void passTwo(double time)
 	bmMat = glm::translate(glm::mat4(1.0f), vector3(10.5f, 0.0f, 0.5f));
 
 	invTrMat = glm::transpose(glm::inverse(bmMat));
-	shadowMVP2 = b * lightPMatrix * lightVMatrix * bmMat;
+	shadowMVP2 = bias * lightPMatrix * lightVMatrix * bmMat;
 
 	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(bmMat));
 	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
@@ -1418,7 +1472,7 @@ void passTwo(double time)
 		* glm::scale(glm::mat4(1.0f), vector3(1.0f, 1.1f, 1.0f));
 
 	invTrMat = glm::transpose(glm::inverse(bmMat));
-	shadowMVP2 = b * lightPMatrix * lightVMatrix * bmMat;
+	shadowMVP2 = bias * lightPMatrix * lightVMatrix * bmMat;
 
 	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(bmMat));
 	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
@@ -1456,7 +1510,7 @@ void passTwo(double time)
 	//cmMat = glm::translate(glm::mat4(1.0f), cubeLoc2) * glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
 	//
 	//invTrMat = glm::transpose(glm::inverse(cmMat));
-	//shadowMVP2 = b * lightPMatrix * lightVMatrix * cmMat;
+	//shadowMVP2 = bias * lightPMatrix * lightVMatrix * cmMat;
 
 	//glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(cmMat));
 	//glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
@@ -1498,7 +1552,7 @@ void passTwo(double time)
 		cmMat = glm::translate(glm::mat4(1.0f), cubeSpawnLocation) * glm::scale(glm::mat4(1.0f), vector3(0.5f, 0.5f, 0.5f));
 
 		invTrMat = glm::transpose(glm::inverse(cmMat));
-		shadowMVP2 = b * lightPMatrix * lightVMatrix * cmMat;
+		shadowMVP2 = bias * lightPMatrix * lightVMatrix * cmMat;
 
 		glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(cmMat));
 		glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
@@ -1540,7 +1594,7 @@ void passTwo(double time)
 	pmMat = glm::translate(glm::mat4(1.0f), vector3(planeLocX, planeLocY, planeLocZ));
 
 	invTrMat = glm::transpose(glm::inverse(pmMat));
-	shadowMVP2 = b * lightPMatrix * lightVMatrix * pmMat;
+	shadowMVP2 = bias * lightPMatrix * lightVMatrix * pmMat;
 
 	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(pmMat));
 	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
@@ -1587,7 +1641,7 @@ void passTwo(double time)
 	vlmMat = glm::translate(glm::mat4(1.0f), vector3(-10.0f, 0.0f, 0.0f));
 
 	invTrMat = glm::transpose(glm::inverse(vlmMat));
-	shadowMVP2 = b * lightPMatrix * lightVMatrix * vlmMat;
+	shadowMVP2 = bias * lightPMatrix * lightVMatrix * vlmMat;
 
 	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(vlmMat));
 	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
@@ -1630,7 +1684,7 @@ void passTwo(double time)
 	tlmMat = glm::translate(glm::mat4(1.0f), vector3(1.0f, 0.0f, 0.01f)) * glm::scale(glm::mat4(1.0f), vector3(1.0f, 5.0f, 1.0f));
 
 	invTrMat = glm::transpose(glm::inverse(tlmMat));
-	shadowMVP2 = b * lightPMatrix * lightVMatrix * tlmMat;
+	shadowMVP2 = bias * lightPMatrix * lightVMatrix * tlmMat;
 
 	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(tlmMat));
 	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
@@ -1677,7 +1731,7 @@ void passTwo(double time)
 		   * glm::scale(glm::mat4(1.0f), vector3(1.0f, 5.0f, 1.0f)); // Since it is rotated, to stretch it in the x-direction, we scale the y value
 
 	invTrMat = glm::transpose(glm::inverse(tlmMat));
-	shadowMVP2 = b * lightPMatrix * lightVMatrix * tlmMat;
+	shadowMVP2 = bias * lightPMatrix * lightVMatrix * tlmMat;
 
 	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(tlmMat));
 	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
@@ -1725,7 +1779,7 @@ void passTwo(double time)
 	hlmMat = glm::translate(glm::mat4(1.0f), vector3(0.0f, -10.0f, 0.0f));
 
 	invTrMat = glm::transpose(glm::inverse(hlmMat));
-	shadowMVP2 = b * lightPMatrix * lightVMatrix * hlmMat;
+	shadowMVP2 = bias * lightPMatrix * lightVMatrix * hlmMat;
 
 	glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(hlmMat));
 	glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
@@ -1760,7 +1814,7 @@ void passTwo(double time)
 	//installLights(renderingProgram2);
 
 	//invTrMat = glm::transpose(glm::inverse(amMat));
-	//shadowMVP2 = b * lightPMatrix * lightVMatrix * amMat;
+	//shadowMVP2 = bias * lightPMatrix * lightVMatrix * amMat;
 
 	//glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(amMat));
 	//glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
@@ -1792,7 +1846,7 @@ void passTwo(double time)
 	//installLights(renderingProgram2);
 
 	//invTrMat = glm::transpose(glm::inverse(amMat));
-	//shadowMVP2 = b * lightPMatrix * lightVMatrix * amMat;
+	//shadowMVP2 = bias * lightPMatrix * lightVMatrix * amMat;
 
 	//glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(amMat));
 	//glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));
@@ -1826,7 +1880,7 @@ void passTwo(double time)
 	//installLights(renderingProgram2);
 
 	//invTrMat = glm::transpose(glm::inverse(amMat));
-	//shadowMVP2 = b * lightPMatrix * lightVMatrix * amMat;
+	//shadowMVP2 = bias * lightPMatrix * lightVMatrix * amMat;
 
 	//glUniformMatrix4fv(mLoc, 1, GL_FALSE, glm::value_ptr(amMat));
 	//glUniformMatrix4fv(vLoc, 1, GL_FALSE, glm::value_ptr(vMat));

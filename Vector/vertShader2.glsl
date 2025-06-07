@@ -2,9 +2,11 @@
 
 layout (location=0) in vec3 position;
 layout (location=1) in vec3 vertNormal;
+layout (location=2) in vec2 texCoord;
 
 out vec3 varyingNormal, varyingLightDir, varyingVertPos, varyingHalfVec; 
 out vec4 shadow_coord;
+out vec2 tc;
 
 struct PositionalLight
 {	vec4 ambient, diffuse, specular;
@@ -36,6 +38,7 @@ uniform mat4 shadowMVP;
 
 layout (binding=0) uniform sampler2DShadow spotlightShadowTex;
 layout (binding=1) uniform sampler2DShadow sunShadowTex;
+layout (binding=2) uniform sampler2D samp;
 
 uniform bool isLine;
 uniform bool isRow;
@@ -69,17 +72,20 @@ void main(void)
         offsetPosition.x += float(col) * offsetAmount;
         shadow_coord = shadowMVP * vec4(offsetPosition, 1.0);
         gl_Position = p_matrix * v_matrix * m_matrix * vec4(offsetPosition, 1.0);
+        tc = texCoord;
     }
     else if (isRow)
     {
         offsetPosition.z += float(row) * offsetAmount;
         shadow_coord = shadowMVP * vec4(offsetPosition, 1.0);
         gl_Position = p_matrix * v_matrix * m_matrix * vec4(offsetPosition, 1.0);
+        tc = texCoord;
     }
     else
     {
         shadow_coord = shadowMVP * vec4(offsetPosition, 1.0);
         gl_Position = p_matrix * v_matrix * m_matrix * vec4(offsetPosition, 1.0);
+        tc = texCoord;
     }
 }
 

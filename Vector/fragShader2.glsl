@@ -3,6 +3,7 @@
 in vec3 varyingNormal, varyingLightDir, varyingVertPos, varyingHalfVec;
 in vec4 shadow_coord;
 out vec4 fragColor;
+in vec2 tc;
  
 struct PositionalLight
 {	vec4 ambient, diffuse, specular;
@@ -34,11 +35,12 @@ uniform mat4 shadowMVP;
 
 layout (binding=0) uniform sampler2DShadow spotlightShadowTex;
 layout (binding=1) uniform sampler2DShadow sunShadowTex;
+layout (binding=2) uniform sampler2D samp;
 
 uniform bool isLine;
 uniform bool isRow;
 uniform bool isAxes;
-//uniform bool isCube;
+uniform bool isCube;
 
 float shadowfactor = 0.0;
 vec4 lightedColor;
@@ -56,6 +58,9 @@ float kq = 0.00032;
 //{
 //	int booleanValue;
 //};
+
+// texture
+vec4 texColor = texture(samp, tc);
 
 float lookup(float x, float y)
 {  	float t = textureProj(spotlightShadowTex, shadow_coord + vec4(x * 0.001 * shadow_coord.w,
@@ -126,9 +131,15 @@ void main(void)
 	}	}
 	shadowfactor = shadowfactor / 64.0;
 	
-
-	vec4 shadowColor = globalAmbient * material.ambient
-				+ light.ambient * material.ambient * attenuation;
+	vec4 shadowColor;
+	if (isCube)
+	{
+		shadowColor = texColor * (globalAmbient + light.ambient * attenuation);
+	}
+	else
+	{
+		shadowColor = globalAmbient * material.ambient + light.ambient * material.ambient * attenuation;
+	}
 
 
 	// Sunlight (Directional)
@@ -140,12 +151,23 @@ void main(void)
 	// Light Max Distance 
 	if (distance < 8.0f)
 	{
-		lightedColor = light.diffuse * material.diffuse * max(dot(L,N),0.0) // Removed to remove the circle of light at center
-				+ light.specular * material.specular
-				* pow(max(dot(H,N),0.0),material.shininess);
+		if (isCube)
+		{
+			lightedColor = light.diffuse * max(dot(L,N),0.0) // Removed to remove the circle of light at center
+			+ light.specular;
 
-		lightedColor =  ((20 * lightedColor) * (attenuation)); // Multiplying by 15 to increase
+			lightedColor =  texColor * ((20 * lightedColor) * (attenuation)); // Multiplying by 15 to increase
+		}
+		else
+		{
+			lightedColor = light.diffuse * material.diffuse * max(dot(L,N),0.0) // Removed to remove the circle of light at center
+			+ light.specular * material.specular
+			* pow(max(dot(H,N),0.0),material.shininess);
+
+			lightedColor =  ((20 * lightedColor) * (attenuation)); // Multiplying by 15 to increase
+		}
 	}
+
 	
 	fragColor = vec4((shadowColor.xyz + intensityFactor * shadowfactor * lightedColor.xyz + sunContribution.xyz),1.0);
 

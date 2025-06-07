@@ -54,7 +54,7 @@ glm::vec3 currentLightPos;
 glm::vec3 lightLoc = vector3(0.0f, 0.0f, 0.1f); // If I make the light closer to the plane with the z value, the fov of the lightPMatrix isn't wide enough and the shadow has artifacts
 float lightPos[3];
 float spotlightCutoff = 30.0f;
-float spotLightExponent = 4.0f;
+float spotLightExponent = 1.0f;
 
 // Shadows
 int scSizeX, scSizeY;
@@ -154,6 +154,9 @@ bool spawnInstancedCube = false;
 bool leftMouseHeld = false;
 bool rightMouseHeld = false;
 bool middleMouseHeld = false;
+
+// Textures
+GLuint brickTexture;
 
 
 void setupVertices();
@@ -376,6 +379,9 @@ void init(GLFWwindow* window)
 	aspect = (float)width / (float)height;
 	pMat = glm::perspective(toRadians(60.0f), aspect, 0.1f, 1000.0f); // 1.0472 is about 60 degrees in radians
 
+	// Textures
+	brickTexture = Utils::loadTexture("brick1.jpg");
+
 	// Object Location Init
 	planeLocX = 0.0f; planeLocY = 0.0f; planeLocZ = 0.0f;
 	//cubeLoc = vector3(1.0f, 0.0f, 0.5f);
@@ -505,7 +511,7 @@ void resetCube()
 
 static bool isCubeInLight()
 {
-	// Convert cubeLoc to light space (World Space -> Light Space -> Light Perspective Space
+	// Convert cubeLoc to light space (World Space -> Light Space -> Light Perspective Space)
 	glm::vec4 lightSpacePos = lightPMatrix * lightVMatrix * glm::vec4(cubeLoc, 1.0f);
 
 	// Perspective divide to convert from 4D homogenous coordinates to 3D coordinates
@@ -621,6 +627,33 @@ void setupVertices()
 		-1.0f,  1.0f, -1.0f, 1.0f,  1.0f, -1.0f, 1.0f,  1.0f,  1.0f,
 		1.0f,  1.0f,  1.0f, -1.0f,  1.0f,  1.0f, -1.0f,  1.0f, -1.0f
 	};
+
+	float cubeTextureCoords[72] = {
+		// Front face (-Z): vertices 0-5 - KEEP AS IS
+		0.0f, 1.0f,  0.0f, 0.0f,  1.0f, 0.0f,
+		1.0f, 0.0f,  1.0f, 1.0f,  0.0f, 1.0f,
+
+		// Right face (+X): vertices 6-11 - ROTATE 90° CW
+		1.0f, 0.0f,  1.0f, 1.0f,  0.0f, 0.0f,
+		1.0f, 1.0f,  0.0f, 1.0f,  0.0f, 0.0f,
+
+		// Back face (+Z): vertices 12-17 - KEEP AS IS
+		1.0f, 0.0f,  0.0f, 0.0f,  1.0f, 1.0f,
+		0.0f, 0.0f,  0.0f, 1.0f,  1.0f, 1.0f,
+
+		// Left face (-X): vertices 18-23 - ROTATE 90° CCW
+		0.0f, 1.0f,  0.0f, 0.0f,  1.0f, 1.0f,
+		0.0f, 0.0f,  1.0f, 0.0f,  1.0f, 1.0f,
+
+		// Bottom face (-Y): vertices 24-29 - KEEP AS IS
+		0.0f, 1.0f,  1.0f, 1.0f,  1.0f, 0.0f,
+		1.0f, 0.0f,  0.0f, 0.0f,  0.0f, 1.0f,
+
+		// Top face (+Y): vertices 30-35 - KEEP AS IS
+		0.0f, 0.0f,  1.0f, 0.0f,  1.0f, 1.0f,
+		1.0f, 1.0f,  0.0f, 1.0f,  0.0f, 0.0f
+	};
+
 
 	float borderVertexPositions[108] = {
 		// Front face
@@ -752,6 +785,9 @@ void setupVertices()
 
 	glBindBuffer(GL_ARRAY_BUFFER, vbo[11]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(borderNormals), borderNormals, GL_STATIC_DRAW);
+	
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[12]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cubeTextureCoords), cubeTextureCoords, GL_STATIC_DRAW);
 }
 
 void display(GLFWwindow* window, double currentTime)
@@ -1054,7 +1090,18 @@ void passOne(double time, glm::mat4 vpMatrix)
 	glFrontFace(GL_CCW);
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
-	glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
+
+	/*if (isCubeInLight())
+	{
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	}
+	else
+	{*/
+		glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
+	//}
+	//glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
 
 	//// ----------------------------------------- Borders -----------------------------------------
 
@@ -1322,12 +1369,30 @@ void passTwo(double time)
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray(1);
 
+	// Cube TEXTURE
+	glBindBuffer(GL_ARRAY_BUFFER, vbo[12]);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(2);
+
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, brickTexture);
+
 	glClear(GL_DEPTH_BUFFER_BIT);
 	glDisable(GL_CULL_FACE);
 	glFrontFace(GL_CCW);
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
-	glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
+
+	/*if (isCubeInLight())
+	{
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	}
+	else
+	{*/
+		glDrawArrays(GL_TRIANGLES, 0, cubeNumVertices);
+	//}
 
 	isCube = false;
 	glUniform1i(isCubeLoc, isCube);
